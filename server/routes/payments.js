@@ -1,0 +1,105 @@
+const { Router } = require('express');
+const { db, autoCompleteSessions } = require('../db/database');
+
+const router = Router();
+
+const VALID_METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
+
+// GET /api/payments — all payments, optional ?client=name
+router.get('/', (req, res) => {
+  autoCompleteSessions();
+  const { client } = req.query;
+  let sql = 'SELECT * FROM payments';
+  const params = [];
+
+  if (client) {
+    sql += ' WHERE client_name = ?';
+    params.push(client);
+  }
+
+  sql += ' ORDER BY date DESC';
+  res.json(db.prepare(sql).all(...params));
+});
+
+// GET /api/payments/summary — each client's balance (completed sessions - payments)
+router.get('/summary', (req, res) => {
+  autoCompleteSessions();
+  const rows = db.prepare(`
+    SELECT
+      c.name AS client_name,
+      c.rate,
+      COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0) AS earned,
+      COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_name = c.name), 0) AS paid,
+      COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0)
+        - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_name = c.name), 0)
+        AS balance_owed
+    FROM clients c
+    LEFT JOIN sessions s ON s.client_name = c.name
+    GROUP BY c.name
+    ORDER BY c.name
+  `).all();
+
+  res.json(rows);
+});
+
+// GET /api/payments/:client — payment history for one client
+router.get('/:client', (req, res) => {
+  autoCompleteSessions();
+  const payments = db.prepare(`
+    SELECT * FROM payments WHERE client_name = ? ORDER BY date DESC
+  `).all(req.params.client);
+
+  res.json(payments);
+});
+
+// POST /api/payments — log a payment
+router.post('/', (req, res) => {
+  const { client_name, date, amount, method, receipt_number } = req.body;
+
+  if (!client_name || !date || amount == null || !method)
+    return res.status(400).json({ error: 'client_name, date, amount, and method are required' });
+
+  if (!VALID_METHODS.includes(method))
+    return res.status(400).json({ error: `method must be one of: ${VALID_METHODS.join(', ')}` });
+
+  try {
+    db.prepare(`
+      INSERT INTO payments (client_name, date, amount, method, receipt_number)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(client_name, date, amount, method, receipt_number ?? null);
+
+    res.status(201).json({ client_name, date, amount, method, receipt_number });
+  } catch (err) {
+    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Payment for this client on this date already exists' });
+    if (err.message.includes('FOREIGN KEY')) return res.status(400).json({ error: 'Client does not exist' });
+    throw err;
+  }
+});
+
+// PUT /api/payments/:client/:date — update a payment
+router.put('/:client/:date', (req, res) => {
+  const { amount, method, receipt_number } = req.body;
+
+  if (method && !VALID_METHODS.includes(method))
+    return res.status(400).json({ error: `method must be one of: ${VALID_METHODS.join(', ')}` });
+
+  const result = db.prepare(`
+    UPDATE payments SET amount = ?, method = ?, receipt_number = ?
+    WHERE client_name = ? AND date = ?
+  `).run(amount, method, receipt_number ?? null, req.params.client, req.params.date);
+
+  if (result.changes === 0) return res.status(404).json({ error: 'Payment not found' });
+  res.json({ client_name: req.params.client, date: req.params.date, amount, method, receipt_number });
+});
+
+// DELETE /api/payments/:client/:date — delete a payment
+router.delete('/:client/:date', (req, res) => {
+  const result = db.prepare(`
+    DELETE FROM payments WHERE client_name = ? AND date = ?
+  `).run(req.params.client, req.params.date);
+
+  if (result.changes === 0) return res.status(404).json({ error: 'Payment not found' });
+  res.status(204).send();
+});
+
+module.exports = router;

@@ -32,7 +32,7 @@ login system.
 A calendar with a toggle between weekly and monthly views, that includes Israeli Jewish national holidays
 An input form for scheduling session that includes: date, time, client, duration, status (Scheduled, Completed, Cancelled)
 An input form for payments that includes: date, client, amount, method, receipt/invoice number (optional)
-A client view that shows: name, total sessions, scheduled session, pending payment, rate, paid ahead
+A client view that shows: name, total completed sessions, scheduled sessions (count), pending payment, rate, paid ahead
 Hosted on a web server
 Monthly summary: total earned, scheduled, owed
 Payments allow for paying ahead for future session
