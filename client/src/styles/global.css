@@ -83,6 +83,12 @@ body {
 .app-main {
   flex: 1;
   padding: 24px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.app-main > * {
+  width: 100%;
 }
 
 .view-placeholder {
