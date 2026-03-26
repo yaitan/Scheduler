@@ -204,9 +204,10 @@ function CalendarView() {
                         <div
                           key={`${s.client_name}-${s.time}`}
                           className={`session-pill session-pill--${s.status.toLowerCase()}`}
-                          onClick={e => e.stopPropagation()}
+                          onClick={e => handleDayClick(e, date)}
                         >
-                          {s.client_name}
+                          <span className="pill-client">{s.client_name}</span>
+                          <span className="pill-time">{s.time}</span>
                         </div>
                       ))}
                     </div>

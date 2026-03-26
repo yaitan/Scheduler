@@ -1,0 +1,258 @@
+/* ── Week view ──────────────────────────────────────────────── */
+
+.week-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(100vh - 100px); /* fill below the app header + main padding */
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+
+.week-topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.week-back-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  justify-self: start;
+}
+
+.week-back-btn:hover {
+  background: var(--bg-surface);
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.week-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 240px;
+  text-align: center;
+}
+
+/* ── Scrollable grid container ──────────────────────────────── */
+
+.week-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* Inner flex row — wide enough for 7 columns to overflow */
+.week-inner {
+  display: flex;
+  width: max-content;
+}
+
+/* ── Sticky time-label column ───────────────────────────────── */
+
+.week-time-col {
+  width: 48px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--bg-primary);
+}
+
+/* Top-left corner cell — sticky both axes */
+.week-time-corner {
+  height: 40px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.week-time-label {
+  height: 32px; /* HOUR_PX */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  transform: translateY(-6px);
+  user-select: none;
+}
+
+.week-time-label--first {
+  transform: none;
+}
+
+/* ── Day columns ─────────────────────────────────────────────── */
+
+/* Each column is 1/5 of the scroll container width so exactly 5 fit */
+.week-day-col {
+  width: calc((100vw - 48px - 40px) / 5 - 2px);
+  min-width: 138px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+}
+
+.week-day-col--today {
+  background: rgba(74, 144, 217, 0.03);
+}
+
+/* ── Day column header ───────────────────────────────────────── */
+
+.week-day-header {
+  height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-secondary);
+}
+
+.week-day-header:hover {
+  background: var(--bg-surface);
+}
+
+.week-day-name {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.week-day-num {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.week-day-num--today {
+  color: var(--accent-blue);
+}
+
+/* ── Day body (time grid) ────────────────────────────────────── */
+
+.week-day-body {
+  position: relative;
+  height: calc(17 * 32px); /* (GRID_END - GRID_START) * HOUR_PX */
+}
+
+.week-slot {
+  height: 32px; /* HOUR_PX */
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.week-slot:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Current time line ───────────────────────────────────────── */
+
+.week-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e05555;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.week-now-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e05555;
+}
+
+/* ── Session blocks ──────────────────────────────────────────── */
+
+.week-session {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 3px;
+  padding: 0 5px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 1;
+  border-left-width: 2px;
+  border-left-style: solid;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.week-session--scheduled {
+  background: rgba(74, 144, 217, 0.15);
+  border-left-color: var(--accent-blue);
+  border-top: 1px solid rgba(74, 144, 217, 0.5);
+  border-right: 1px solid rgba(74, 144, 217, 0.5);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.5);
+}
+
+.week-session--scheduled:hover { background: rgba(74, 144, 217, 0.25); }
+
+.week-session--completed {
+  background: rgba(76, 175, 80, 0.13);
+  border-left-color: var(--accent-green);
+  border-top: 1px solid rgba(76, 175, 80, 0.45);
+  border-right: 1px solid rgba(76, 175, 80, 0.45);
+  border-bottom: 1px solid rgba(76, 175, 80, 0.45);
+}
+
+.week-session--completed:hover { background: rgba(76, 175, 80, 0.22); }
+
+.week-session--cancelled {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: #555;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.6;
+}
+
+.week-session-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-session-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  flex-shrink: 0;
+}

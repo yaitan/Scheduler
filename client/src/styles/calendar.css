@@ -131,7 +131,6 @@
 .calendar-week {
   display: grid;
   grid-template-columns: 32px repeat(7, 1fr);
-  border-bottom: 1px solid var(--border);
 }
 
 .calendar-week-num-header {
@@ -146,6 +145,7 @@
   font-weight: 500;
   color: var(--text-secondary);
   border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
 }
@@ -161,6 +161,7 @@
   min-height: 96px;
   padding: 6px 8px 8px;
   border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
   cursor: pointer;
   position: relative;
@@ -173,11 +174,28 @@
 
 .calendar-cell--other-month {
   cursor: default;
+  border-right-color: rgba(58, 58, 58, 0.35);
+}
+
+.calendar-cell--other-month .cell-date-num,
+.calendar-cell--other-month .cell-holiday,
+.calendar-cell--other-month .cell-sessions {
   opacity: 0.3;
 }
 
 .calendar-cell--other-month:hover {
   background: transparent;
+}
+
+/* Full-opacity border where other-month meets current-month */
+.calendar-cell--other-month + .calendar-cell:not(.calendar-cell--other-month) {
+  box-shadow: -1px 0 0 0 var(--border);
+}
+
+/* Dim bottom border only for end-of-month padding (last week row) */
+.calendar-week:last-child .calendar-cell--other-month,
+.calendar-week:last-child .calendar-week-num {
+  border-bottom-color: rgba(58, 58, 58, 0.35);
 }
 
 .calendar-cell--today .cell-date-num {
@@ -234,9 +252,23 @@
   border-radius: 3px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   line-height: 1.4;
-  cursor: default;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pill-client {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pill-time {
+  flex-shrink: 0;
+  opacity: 0.75;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 .session-pill--scheduled {
@@ -274,9 +306,9 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  width: 480px;
+  width: 464px;
   max-width: 95vw;
-  max-height: 80vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -286,13 +318,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .day-view-title {
   flex: 1;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   text-align: center;
@@ -306,7 +339,6 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  margin-left: auto;
 }
 
 .day-view-close:hover {
@@ -315,6 +347,139 @@
 }
 
 .day-view-body {
-  padding: 20px;
   overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Day time grid ───────────────────────────────────────────── */
+
+.day-grid {
+  display: flex;
+}
+
+.day-labels {
+  flex-shrink: 0;
+  width: 52px;
+}
+
+.day-label {
+  height: 48px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  transform: translateY(-7px);
+  user-select: none;
+}
+
+.day-label:first-child {
+  transform: none;
+  align-items: flex-start;
+}
+
+.day-slots {
+  flex: 1;
+  position: relative;
+  border-left: 1px solid var(--border);
+}
+
+.day-slot {
+  height: 48px;
+  cursor: pointer;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border);
+}
+
+.day-slot:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Current time line */
+.day-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e05555;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.day-now-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e05555;
+}
+
+/* Session blocks */
+.day-session {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border-radius: 4px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  z-index: 1;
+  overflow: hidden;
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.day-session--scheduled {
+  background: rgba(74, 144, 217, 0.15);
+  border-left-color: var(--accent-blue);
+  border-top: 1px solid rgba(74, 144, 217, 0.5);
+  border-right: 1px solid rgba(74, 144, 217, 0.5);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.5);
+}
+
+.day-session--scheduled:hover {
+  background: rgba(74, 144, 217, 0.25);
+}
+
+.day-session--completed {
+  background: rgba(76, 175, 80, 0.13);
+  border-left-color: var(--accent-green);
+  border-top: 1px solid rgba(76, 175, 80, 0.45);
+  border-right: 1px solid rgba(76, 175, 80, 0.45);
+  border-bottom: 1px solid rgba(76, 175, 80, 0.45);
+}
+
+.day-session--completed:hover {
+  background: rgba(76, 175, 80, 0.22);
+}
+
+.day-session--cancelled {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: #555;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.6;
+}
+
+.day-session-client {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-session-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
