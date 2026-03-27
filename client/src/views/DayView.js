@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MONTH_NAMES, DOW_FULL, toDateStr } from '../utils/dateUtils';
+import '../styles/day.css';
 
 const GRID_START = 7;    // first visible hour
 const GRID_END   = 24;   // last visible hour (exclusive)
@@ -96,7 +97,7 @@ function DayView({ date, onClose, onNavigate }) {
               {/* Sessions */}
               {sessions.map(s => (
                 <div
-                  key={`${s.client_name}-${s.time}`}
+                  key={`${s.name}-${s.time}`}
                   className={`day-session day-session--${s.status.toLowerCase()}`}
                   style={{
                     top:    timeToOffset(s.time),
@@ -104,7 +105,7 @@ function DayView({ date, onClose, onNavigate }) {
                   }}
                   onClick={e => { e.stopPropagation(); /* TODO: open edit-session form */ }}
                 >
-                  <span className="day-session-client">{s.client_name}</span>
+                  <span className="day-session-client">{s.name}</span>
                   <span className="day-session-meta">{s.time} · {s.duration}h</span>
                 </div>
               ))}

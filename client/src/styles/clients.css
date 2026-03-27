@@ -1,0 +1,336 @@
+/* ── Clients view ────────────────────────────────────────────── */
+
+.clients-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+
+.clients-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clients-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.clients-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0 16px;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clients-add-btn:hover {
+  background: #5a9fe8;
+}
+
+/* ── Table ───────────────────────────────────────────────────── */
+
+.clients-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.clients-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.clients-table thead {
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.clients-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.clients-table th.col-num {
+  text-align: center;
+}
+
+.clients-table td {
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.clients-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.clients-table tbody tr {
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.clients-table tbody tr:hover {
+  background: var(--bg-surface);
+}
+
+.clients-table td.col-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Balance colours ─────────────────────────────────────────── */
+
+.clients-table td.balance--owed {
+  color: #e07b54;
+  font-weight: 600;
+}
+
+.clients-table td.balance--credit {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.clients-table td.balance--zero {
+  color: var(--text-secondary);
+}
+
+/* ── Modal overlay ───────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 400px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+/* ── Form ────────────────────────────────────────────────────── */
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-required {
+  color: #e07b54;
+}
+
+.form-input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  width: 100%;
+}
+
+.form-input:focus {
+  border-color: var(--accent-blue);
+}
+
+.form-input--error {
+  border-color: #e07b54;
+}
+
+.form-static {
+  font-size: 14px;
+  color: var(--text-primary);
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.form-error {
+  font-size: 12px;
+  color: #e07b54;
+}
+
+.form-api-error {
+  font-size: 13px;
+  color: #e07b54;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0 18px;
+  height: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5a9fe8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-secondary {
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 18px;
+  height: 34px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: none;
+  color: #e07b54;
+  border: 1px solid #e07b54;
+  border-radius: 4px;
+  padding: 0 18px;
+  height: 34px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(224, 123, 84, 0.1);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Confirm dialog ──────────────────────────────────────────── */
+
+.modal--narrow {
+  width: 340px;
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.confirm-warning {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.modal-actions--spread {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Empty / loading states ──────────────────────────────────── */
+
+.clients-empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}

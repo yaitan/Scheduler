@@ -214,31 +214,31 @@
 }
 
 .week-session--scheduled {
-  background: rgba(74, 144, 217, 0.15);
+  background: #212c37;
   border-left-color: var(--accent-blue);
-  border-top: 1px solid rgba(74, 144, 217, 0.5);
-  border-right: 1px solid rgba(74, 144, 217, 0.5);
-  border-bottom: 1px solid rgba(74, 144, 217, 0.5);
+  border-top: 1px solid #32557a;
+  border-right: 1px solid #32557a;
+  border-bottom: 1px solid #32557a;
 }
 
-.week-session--scheduled:hover { background: rgba(74, 144, 217, 0.25); }
+.week-session--scheduled:hover { background: #26384a; }
 
 .week-session--completed {
-  background: rgba(76, 175, 80, 0.13);
+  background: #212d21;
   border-left-color: var(--accent-green);
-  border-top: 1px solid rgba(76, 175, 80, 0.45);
-  border-right: 1px solid rgba(76, 175, 80, 0.45);
-  border-bottom: 1px solid rgba(76, 175, 80, 0.45);
+  border-top: 1px solid #315d32;
+  border-right: 1px solid #315d32;
+  border-bottom: 1px solid #315d32;
 }
 
-.week-session--completed:hover { background: rgba(76, 175, 80, 0.22); }
+.week-session--completed:hover { background: #253b26; }
 
 .week-session--cancelled {
-  background: rgba(255, 255, 255, 0.04);
+  background: #232323;
   border-left-color: #555;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid #313131;
+  border-right: 1px solid #313131;
+  border-bottom: 1px solid #313131;
   opacity: 0.6;
 }
 

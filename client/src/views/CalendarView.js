@@ -90,7 +90,7 @@ function CalendarView() {
   const completed = sessions.filter(s => s.status === 'Completed');
   const scheduled = sessions.filter(s => s.status === 'Scheduled');
   const totalRevenue = completed.reduce(
-    (sum, s) => sum + s.duration * (clientRates[s.client_name] || 0), 0
+    (sum, s) => sum + s.duration * (clientRates[s.name] || 0), 0
   );
   const totalHours = scheduled.reduce((sum, s) => sum + s.duration, 0);
 
@@ -202,11 +202,11 @@ function CalendarView() {
                     <div className="cell-sessions">
                       {daySessions.map(s => (
                         <div
-                          key={`${s.client_name}-${s.time}`}
+                          key={`${s.name}-${s.time}`}
                           className={`session-pill session-pill--${s.status.toLowerCase()}`}
                           onClick={e => handleDayClick(e, date)}
                         >
-                          <span className="pill-client">{s.client_name}</span>
+                          <span className="pill-client">{s.name}</span>
                           <span className="pill-time">{s.time}</span>
                         </div>
                       ))}

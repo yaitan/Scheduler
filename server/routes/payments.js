@@ -9,7 +9,7 @@ const VALID_METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
 router.get('/', (req, res) => {
   autoCompleteSessions();
   const { client } = req.query;
-  let sql = 'SELECT * FROM payments';
+  let sql = 'SELECT client_name AS name, date, amount, method, receipt_number FROM payments';
   const params = [];
 
   if (client) {
@@ -26,7 +26,7 @@ router.get('/summary', (req, res) => {
   autoCompleteSessions();
   const rows = db.prepare(`
     SELECT
-      c.name AS client_name,
+      c.name,
       c.rate,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0) AS earned,
       COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_name = c.name), 0) AS paid,
@@ -46,7 +46,8 @@ router.get('/summary', (req, res) => {
 router.get('/:client', (req, res) => {
   autoCompleteSessions();
   const payments = db.prepare(`
-    SELECT * FROM payments WHERE client_name = ? ORDER BY date DESC
+    SELECT client_name AS name, date, amount, method, receipt_number
+    FROM payments WHERE client_name = ? ORDER BY date DESC
   `).all(req.params.client);
 
   res.json(payments);
@@ -54,10 +55,10 @@ router.get('/:client', (req, res) => {
 
 // POST /api/payments — log a payment
 router.post('/', (req, res) => {
-  const { client_name, date, amount, method, receipt_number } = req.body;
+  const { name, date, amount, method, receipt_number } = req.body;
 
-  if (!client_name || !date || amount == null || !method)
-    return res.status(400).json({ error: 'client_name, date, amount, and method are required' });
+  if (!name || !date || amount == null || !method)
+    return res.status(400).json({ error: 'name, date, amount, and method are required' });
 
   if (!VALID_METHODS.includes(method))
     return res.status(400).json({ error: `method must be one of: ${VALID_METHODS.join(', ')}` });
@@ -66,9 +67,9 @@ router.post('/', (req, res) => {
     db.prepare(`
       INSERT INTO payments (client_name, date, amount, method, receipt_number)
       VALUES (?, ?, ?, ?, ?)
-    `).run(client_name, date, amount, method, receipt_number ?? null);
+    `).run(name, date, amount, method, receipt_number ?? null);
 
-    res.status(201).json({ client_name, date, amount, method, receipt_number });
+    res.status(201).json({ name, date, amount, method, receipt_number });
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Payment for this client on this date already exists' });
     if (err.message.includes('FOREIGN KEY')) return res.status(400).json({ error: 'Client does not exist' });

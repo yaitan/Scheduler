@@ -13,16 +13,17 @@ router.get('/', (req, res) => {
       c.rate,
       c.phone,
       c.parent_phone,
-      COUNT(DISTINCT CASE WHEN s.status = 'Completed' THEN s.date || s.time END) AS total_sessions,
-      COUNT(DISTINCT CASE WHEN s.status = 'Scheduled' THEN s.date || s.time END) AS scheduled_sessions,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration ELSE 0 END), 0) AS total_hours,
+      COALESCE(SUM(CASE WHEN s.status = 'Scheduled' THEN s.duration ELSE 0 END), 0) AS scheduled_hours,
+      COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0) AS total_revenue,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0)
         - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_name = c.name), 0)
-        AS balance_owed
+        AS balance_owed,
+      MAX(CASE WHEN s.status = 'Completed' THEN s.date END) AS last_session_date
     FROM clients c
     LEFT JOIN sessions s ON s.client_name = c.name
     GROUP BY c.name
-    ORDER BY c.name
+    ORDER BY last_session_date DESC NULLS LAST, c.name
   `).all();
 
   res.json(clients);
@@ -93,11 +94,22 @@ router.put('/:name', (req, res) => {
   res.json({ name: req.params.name, rate, phone, parent_phone });
 });
 
-// DELETE /api/clients/:name — delete client
+// DELETE /api/clients/:name — delete client and all associated sessions and payments
 router.delete('/:name', (req, res) => {
-  const result = db.prepare('DELETE FROM clients WHERE name = ?').run(req.params.name);
-  if (result.changes === 0) return res.status(404).json({ error: 'Client not found' });
-  res.status(204).send();
+  const { name } = req.params;
+
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM payments WHERE client_name = ?').run(name);
+    db.prepare('DELETE FROM sessions WHERE client_name = ?').run(name);
+    const result = db.prepare('DELETE FROM clients WHERE name = ?').run(name);
+    db.exec('COMMIT');
+    if (result.changes === 0) return res.status(404).json({ error: 'Client not found' });
+    res.status(204).send();
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 });
 
 module.exports = router;

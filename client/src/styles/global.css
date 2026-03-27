@@ -11,6 +11,17 @@
   --border: #3a3a3a;
 }
 
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

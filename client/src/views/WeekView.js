@@ -143,7 +143,7 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
 
                   {daySessions.map(s => (
                     <div
-                      key={`${s.client_name}-${s.time}`}
+                      key={`${s.name}-${s.time}`}
                       className={`week-session week-session--${s.status.toLowerCase()}`}
                       style={{
                         top:    timeToOffset(s.time),
@@ -151,8 +151,8 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
                       }}
                       onClick={e => { e.stopPropagation(); /* TODO: open edit-session form */ }}
                     >
-                      <span className="week-session-name">{s.client_name}</span>
-                      <span className="week-session-meta"> · {s.time} · {s.duration}h</span>
+                      <span className="week-session-name">{s.name}</span>
+                      <span className="week-session-meta">  {'\u00A0'} {s.time} · {s.duration}h</span>
                     </div>
                   ))}
                 </div>
