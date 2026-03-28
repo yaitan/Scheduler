@@ -1,0 +1,39 @@
+/* ── Payments view ───────────────────────────────────────────── */
+
+.payments-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.payments-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.payments-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.payments-divider {
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+.payments-unpaid-date {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.payments-method {
+  color: var(--text-secondary);
+  font-size: 13px;
+}

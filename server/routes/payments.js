@@ -5,24 +5,75 @@ const router = Router();
 
 const VALID_METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
 
-// GET /api/payments — all payments, optional ?client=name
+// GET /api/payments — all payments, optional ?client=name&from=YYYY-MM-DD
 router.get('/', (req, res) => {
   autoCompleteSessions();
-  const { client } = req.query;
-  let sql = 'SELECT client_name AS name, date, amount, method, receipt_number FROM payments';
+  const { client, from } = req.query;
+  let sql = 'SELECT client_name AS name, date, amount, method, receipt_number FROM payments WHERE 1=1';
   const params = [];
 
-  if (client) {
-    sql += ' WHERE client_name = ?';
-    params.push(client);
-  }
+  if (client) { sql += ' AND client_name = ?'; params.push(client); }
+  if (from)   { sql += ' AND date >= ?';        params.push(from); }
 
   sql += ' ORDER BY date DESC';
   res.json(db.prepare(sql).all(...params));
 });
 
+// GET /api/payments/owed — clients with outstanding balance + earliest unpaid session
+router.get('/owed', (_req, res) => {
+  autoCompleteSessions();
+
+  const clients = db.prepare(`
+    SELECT
+      c.name,
+      c.rate,
+      COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * c.rate ELSE 0 END), 0)
+        - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.client_name = c.name), 0)
+        AS balance_owed
+    FROM clients c
+    LEFT JOIN sessions s ON s.client_name = c.name
+    GROUP BY c.name
+    HAVING balance_owed > 0
+    ORDER BY balance_owed DESC
+  `).all();
+
+  const sessionStmt = db.prepare(`
+    SELECT date, time, duration FROM sessions
+    WHERE client_name = ? AND status = 'Completed'
+    ORDER BY date ASC, time ASC
+  `);
+  const paidStmt = db.prepare(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE client_name = ?`
+  );
+
+  const result = clients.map(client => {
+    const sessions = sessionStmt.all(client.name);
+    const paid = paidStmt.get(client.name).total;
+
+    let running = 0;
+    let earliestUnpaid = null;
+    let hoursOwed = 0;
+    for (const s of sessions) {
+      running += s.duration * client.rate;
+      if (running > paid) {
+        if (!earliestUnpaid) earliestUnpaid = { date: s.date, time: s.time };
+        hoursOwed += s.duration;
+      }
+    }
+
+    return {
+      name: client.name,
+      balance_owed: client.balance_owed,
+      hours_owed: hoursOwed,
+      earliest_unpaid: earliestUnpaid,
+    };
+  });
+
+  res.json(result);
+});
+
 // GET /api/payments/summary — each client's balance (completed sessions - payments)
-router.get('/summary', (req, res) => {
+router.get('/summary', (_req, res) => {
   autoCompleteSessions();
   const rows = db.prepare(`
     SELECT
