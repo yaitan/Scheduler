@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import WeekView from './WeekView';
 import DayView from './DayView';
+import NewSessionModal from '../components/NewSessionModal';
 import JEWISH_HOLIDAYS from '../utils/jewishHolidays';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber } from '../utils/dateUtils';
 import '../styles/calendar.css';
@@ -48,6 +49,8 @@ function CalendarView() {
   const [subView, setSubView] = useState(null); // null | 'week' | 'day'
   const [selectedWeekStart, setSelectedWeekStart] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [newSessionOpen, setNewSessionOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -72,7 +75,7 @@ function CalendarView() {
 
       setLoading(false);
     });
-  }, [monthStr]);
+  }, [monthStr, refreshKey]);
 
   const weeks = buildCalendarWeeks(year, month);
 
@@ -121,6 +124,7 @@ function CalendarView() {
         weekStart={selectedWeekStart}
         onBack={() => setSubView(null)}
         onDayClick={(date) => { setSelectedDay(date); setSubView('day'); }}
+        onSessionCreated={() => setRefreshKey(k => k + 1)}
       />
     );
   }
@@ -131,9 +135,17 @@ function CalendarView() {
     <div className="calendar">
       {/* Month navigation */}
       <div className="calendar-header">
-        <button className="cal-nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
-        <h2 className="calendar-month-title">{MONTH_NAMES[month]} {year}</h2>
-        <button className="cal-nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
+        <div />
+        <div className="calendar-header-nav">
+          <button className="cal-nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
+          <h2 className="calendar-month-title">{MONTH_NAMES[month]} {year}</h2>
+          <button className="cal-nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
+        </div>
+        <div className="calendar-header-actions">
+          <button className="new-session-btn" onClick={() => setNewSessionOpen(true)}>
+            + New Session
+          </button>
+        </div>
       </div>
 
       {/* Summary bar */}
@@ -225,6 +237,15 @@ function CalendarView() {
           date={selectedDay}
           onClose={() => setSubView(null)}
           onNavigate={date => setSelectedDay(date)}
+          onSessionCreated={() => setRefreshKey(k => k + 1)}
+        />
+      )}
+
+      {/* New session modal */}
+      {newSessionOpen && (
+        <NewSessionModal
+          onClose={() => setNewSessionOpen(false)}
+          onCreated={() => setRefreshKey(k => k + 1)}
         />
       )}
     </div>

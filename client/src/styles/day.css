@@ -39,6 +39,12 @@
   text-align: center;
 }
 
+.day-new-session-btn {
+  padding: 0 10px;
+  font-size: 18px;
+  font-weight: 400;
+}
+
 .day-view-close {
   background: none;
   border: none;

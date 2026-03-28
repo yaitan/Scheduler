@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import NewSessionModal from '../components/NewSessionModal';
+import EditSessionModal from '../components/EditSessionModal';
 import { MONTH_NAMES, DOW_FULL, toDateStr } from '../utils/dateUtils';
 import '../styles/day.css';
 
@@ -11,8 +13,11 @@ function timeToOffset(timeStr) {
   return (h - GRID_START + m / 60) * HOUR_PX;
 }
 
-function DayView({ date, onClose, onNavigate }) {
+function DayView({ date, onClose, onNavigate, onSessionCreated }) {
   const [sessions, setSessions] = useState([]);
+  const [newSession, setNewSession] = useState(null);  // null | { date, time }
+  const [editSession, setEditSession] = useState(null); // null | session object
+  const [refreshKey, setRefreshKey] = useState(0);
   const bodyRef = useRef(null);
 
   const dateStr  = toDateStr(date);
@@ -25,7 +30,7 @@ function DayView({ date, onClose, onNavigate }) {
         setSessions((Array.isArray(data) ? data : []).filter(s => s.date === dateStr));
       })
       .catch(() => setSessions([]));
-  }, [dateStr, monthStr]);
+  }, [dateStr, monthStr, refreshKey]);
 
   // Scroll to 8:00 on open
   useEffect(() => {
@@ -62,6 +67,13 @@ function DayView({ date, onClose, onNavigate }) {
           <button className="cal-nav-btn" onClick={prevDay} aria-label="Previous day">‹</button>
           <h3 className="day-view-title">{label}</h3>
           <button className="cal-nav-btn" onClick={nextDay} aria-label="Next day">›</button>
+          <button
+            className="new-session-btn day-new-session-btn"
+            onClick={() => setNewSession({ date: dateStr })}
+            aria-label="New session"
+          >
+            +
+          </button>
           <button className="day-view-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
@@ -85,7 +97,10 @@ function DayView({ date, onClose, onNavigate }) {
                 <div
                   key={hour}
                   className="day-slot"
-                  onClick={() => { /* TODO: open add-session form pre-filled to this time */ }}
+                  onClick={() => setNewSession({
+                    date: dateStr,
+                    time: `${String(hour).padStart(2, '0')}:00`,
+                  })}
                 />
               ))}
 
@@ -103,7 +118,7 @@ function DayView({ date, onClose, onNavigate }) {
                     top:    timeToOffset(s.time),
                     height: Math.max(s.duration * HOUR_PX, 24),
                   }}
-                  onClick={e => { e.stopPropagation(); /* TODO: open edit-session form */ }}
+                  onClick={e => { e.stopPropagation(); setEditSession(s); }}
                 >
                   <span className="day-session-client">{s.name}</span>
                   <span className="day-session-meta">{s.time} · {s.duration}h</span>
@@ -115,6 +130,25 @@ function DayView({ date, onClose, onNavigate }) {
         </div>
 
       </div>
+
+      {/* Edit session modal */}
+      {editSession && (
+        <EditSessionModal
+          session={editSession}
+          onClose={() => setEditSession(null)}
+          onUpdated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* New session modal */}
+      {newSession !== null && (
+        <NewSessionModal
+          initialDate={newSession.date}
+          initialTime={newSession.time}
+          onClose={() => setNewSession(null)}
+          onCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
     </div>
   );
 }

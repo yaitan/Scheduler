@@ -1,0 +1,120 @@
+/* ── react-datepicker dark theme overrides ───────────────────── */
+
+.dp-wrapper {
+  width: 100%;
+}
+
+.dp-wrapper .form-input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.react-datepicker-popper {
+  z-index: 400;
+}
+
+.react-datepicker {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.react-datepicker__triangle {
+  display: none;
+}
+
+.react-datepicker__header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+  padding: 10px 0 6px;
+}
+
+.react-datepicker__current-month {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--text-secondary);
+}
+
+.react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+  border-color: var(--text-primary);
+}
+
+.react-datepicker__day-names {
+  margin-top: 4px;
+}
+
+.react-datepicker__day-name {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  width: 28px;
+  line-height: 28px;
+  margin: 1px;
+}
+
+/* Saturday column header — index 6 (Sun=0 … Sat=6) */
+.react-datepicker__day-name:last-child {
+  color: #d9534f;
+}
+
+.react-datepicker__day {
+  color: var(--text-primary);
+  width: 28px;
+  line-height: 28px;
+  margin: 1px;
+  border-radius: 4px;
+}
+
+.react-datepicker__day:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.react-datepicker__day--selected:hover,
+.react-datepicker__day--keyboard-selected:hover {
+  background: #5a9fe8;
+}
+
+.react-datepicker__day--today {
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.react-datepicker__day--today.react-datepicker__day--selected {
+  color: #fff;
+}
+
+.react-datepicker__day--outside-month {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.react-datepicker__day--disabled {
+  color: var(--text-secondary);
+  opacity: 0.3;
+}
+
+/* Saturday days */
+.rdp-saturday {
+  color: #d9534f;
+}
+
+.rdp-saturday.react-datepicker__day--selected {
+  color: #fff;
+}

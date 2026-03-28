@@ -116,3 +116,26 @@ body {
 .view-placeholder p {
   color: var(--text-secondary);
 }
+
+/* ── Shared new-session button ───────────────────────────────── */
+
+.new-session-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0 14px;
+  height: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.new-session-btn:hover {
+  background: #5a9fe8;
+}

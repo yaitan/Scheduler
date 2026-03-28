@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DayView from './DayView';
+import NewSessionModal from '../components/NewSessionModal';
+import EditSessionModal from '../components/EditSessionModal';
 import { MONTH_NAMES, DOW_LABELS, toDateStr } from '../utils/dateUtils';
 import '../styles/week.css';
 
@@ -29,10 +31,13 @@ function weekLabel(days) {
   return `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
 }
 
-function WeekView({ weekStart: initialWeekStart, onBack }) {
+function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
   const [weekStart, setWeekStart] = useState(initialWeekStart);
   const [sessions, setSessions]   = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [newSession, setNewSession] = useState(null);  // null | { date, time }
+  const [editSession, setEditSession] = useState(null); // null | session object
+  const [refreshKey, setRefreshKey] = useState(0);
   const scrollRef = useRef(null);
 
   const days         = getWeekDays(weekStart);
@@ -56,7 +61,7 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
     ).then(results => {
       setSessions(results.flat().filter(s => weekDates.has(s.date)));
     });
-  }, [weekStartStr]);
+  }, [weekStartStr, refreshKey]);
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -94,6 +99,13 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
           <span className="week-title">{weekLabel(days)}</span>
           <button className="cal-nav-btn" onClick={nextWeek} aria-label="Next week">›</button>
         </div>
+        <button
+          className="new-session-btn"
+          style={{ justifySelf: 'end' }}
+          onClick={() => setNewSession({})}
+        >
+          + New Session
+        </button>
       </div>
 
       {/* Scrollable grid */}
@@ -133,7 +145,10 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
                     <div
                       key={h}
                       className="week-slot"
-                      onClick={() => { /* TODO: open add-session form */ }}
+                      onClick={() => setNewSession({
+                        date: dateStr,
+                        time: `${String(h).padStart(2, '0')}:00`,
+                      })}
                     />
                   ))}
 
@@ -149,7 +164,7 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
                         top:    timeToOffset(s.time),
                         height: Math.max(s.duration * HOUR_PX, 20),
                       }}
-                      onClick={e => { e.stopPropagation(); /* TODO: open edit-session form */ }}
+                      onClick={e => { e.stopPropagation(); setEditSession(s); }}
                     >
                       <span className="week-session-name">{s.name}</span>
                       <span className="week-session-meta">  {'\u00A0'} {s.time} · {s.duration}h</span>
@@ -170,6 +185,26 @@ function WeekView({ weekStart: initialWeekStart, onBack }) {
           date={selectedDay}
           onClose={() => setSelectedDay(null)}
           onNavigate={setSelectedDay}
+          onSessionCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* Edit session modal */}
+      {editSession && (
+        <EditSessionModal
+          session={editSession}
+          onClose={() => setEditSession(null)}
+          onUpdated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* New session modal */}
+      {newSession !== null && (
+        <NewSessionModal
+          initialDate={newSession.date}
+          initialTime={newSession.time}
+          onClose={() => setNewSession(null)}
+          onCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
         />
       )}
 

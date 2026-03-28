@@ -238,6 +238,21 @@
   text-align: center;
 }
 
+.form-warning-box {
+  background: rgba(217, 83, 79, 0.1);
+  border: 1px solid rgba(217, 83, 79, 0.4);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-warning-text {
+  font-size: 13px;
+  color: #e08a54;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
