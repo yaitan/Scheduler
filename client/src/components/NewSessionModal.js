@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
+import { apiFetch } from '../utils/api';
 import '../styles/datepicker-theme.css';
 
 function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
@@ -15,7 +16,7 @@ function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
   const [warnings, setWarnings] = useState(null); // null | string[]
 
   useEffect(() => {
-    fetch('/api/clients')
+    apiFetch('/api/clients')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setClients(data); })
       .catch(() => {});
@@ -45,7 +46,7 @@ function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/sessions', {
+      const res = await apiFetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +149,7 @@ function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
               onChange={e => setDuration(e.target.value)}
               min="0.5"
               max="8"
-              step="0.5"
+              step="any"
               required
             />
           </div>

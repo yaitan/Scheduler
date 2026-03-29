@@ -3,6 +3,7 @@ import NewPaymentModal from '../components/NewPaymentModal';
 import EditPaymentModal from '../components/EditPaymentModal';
 import '../styles/clients.css';
 import '../styles/payments.css';
+import { apiFetch } from '../utils/api';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -29,8 +30,8 @@ function PaymentsView() {
     setLoading(true);
     const from = twoMonthsAgoStart();
     Promise.all([
-      fetch('/api/payments/owed').then(r => r.json()).catch(() => []),
-      fetch(`/api/payments?from=${from}`).then(r => r.json()).catch(() => []),
+      apiFetch('/api/payments/owed').then(r => r.json()).catch(() => []),
+      apiFetch(`/api/payments?from=${from}`).then(r => r.json()).catch(() => []),
     ]).then(([owedData, paymentsData]) => {
       setOwed(Array.isArray(owedData) ? owedData : []);
       setPayments(Array.isArray(paymentsData) ? paymentsData : []);

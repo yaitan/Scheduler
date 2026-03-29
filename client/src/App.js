@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import CalendarView from './views/CalendarView';
 import ClientsView from './views/ClientsView';
 import PaymentsView from './views/PaymentsView';
+import LoginScreen from './components/LoginScreen';
+import { getToken, clearToken } from './utils/api';
 import './styles/global.css';
 
 const VIEWS = {
@@ -12,8 +14,22 @@ const VIEWS = {
 };
 
 function App() {
+  const [authed, setAuthed] = useState(() => !!getToken());
   const [activeView, setActiveView] = useState('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    function handleLogout() {
+      clearToken();
+      setAuthed(false);
+    }
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
+
+  if (!authed) {
+    return <LoginScreen onLogin={() => setAuthed(true)} />;
+  }
 
   const ActiveView = VIEWS[activeView];
 

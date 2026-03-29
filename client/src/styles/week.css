@@ -77,7 +77,8 @@
 
 /* Top-left corner cell — sticky both axes */
 .week-time-corner {
-  height: 40px;
+  min-height: 40px;
+  height: auto;
   position: sticky;
   top: 0;
   z-index: 15;
@@ -118,7 +119,8 @@
 /* ── Day column header ───────────────────────────────────────── */
 
 .week-day-header {
-  height: 40px;
+  min-height: 40px;
+  height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -193,6 +195,47 @@
   height: 10px;
   border-radius: 50%;
   background: #e05555;
+}
+
+/* ── All-day holiday label in day header ─────────────────────── */
+
+.week-day-holiday {
+  font-size: 9px;
+  color: #f97316;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 4px;
+  line-height: 1.3;
+}
+
+/* ── Holiday / Shabbat time blocks ───────────────────────────── */
+
+.holiday-block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(249, 115, 22, 0.12);
+  border-left: 3px solid rgba(249, 115, 22, 0.7);
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 4px;
+}
+
+.holiday-block-name {
+  font-size: 9px;
+  color: #f97316;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
 }
 
 /* ── Session blocks ──────────────────────────────────────────── */

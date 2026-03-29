@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
+import { apiFetch } from '../utils/api';
 import '../styles/datepicker-theme.css';
 
 function EditSessionModal({ session, onClose, onUpdated }) {
@@ -37,7 +38,7 @@ function EditSessionModal({ session, onClose, onUpdated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/sessions/${encodeURIComponent(session.name)}/${session.date}/${session.time}`,
         {
           method: 'PUT',
@@ -69,7 +70,7 @@ function EditSessionModal({ session, onClose, onUpdated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/sessions/${encodeURIComponent(session.name)}/${session.date}/${session.time}`,
         { method: 'DELETE' }
       );
@@ -180,7 +181,7 @@ function EditSessionModal({ session, onClose, onUpdated }) {
               onChange={e => setDuration(e.target.value)}
               min="0.5"
               max="8"
-              step="0.5"
+              step="any"
               required
             />
           </div>

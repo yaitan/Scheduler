@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import NewSessionModal from '../components/NewSessionModal';
-import JEWISH_HOLIDAYS from '../utils/jewishHolidays';
+import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
+import { apiFetch } from '../utils/api';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber } from '../utils/dateUtils';
+
+const HOLIDAY_EVENTS = getHolidayEventsByDate();
 import '../styles/calendar.css';
 
 function buildCalendarWeeks(year, month) {
@@ -57,9 +60,9 @@ function CalendarView() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []),
-      fetch('/api/clients').then(r => r.json()).catch(() => []),
-      fetch('/api/payments/summary').then(r => r.json()).catch(() => []),
+      apiFetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []),
+      apiFetch('/api/clients').then(r => r.json()).catch(() => []),
+      apiFetch('/api/payments/summary').then(r => r.json()).catch(() => []),
     ]).then(([sessionData, clientData, summaryData]) => {
       setSessions(Array.isArray(sessionData) ? sessionData : []);
 
@@ -193,7 +196,7 @@ function CalendarView() {
                 const isCurrentMonth = date.getMonth() === month;
                 const isToday = dateStr === todayStr;
                 const daySessions = isCurrentMonth ? (sessionsByDate[dateStr] || []) : [];
-                const holiday = JEWISH_HOLIDAYS[dateStr];
+                const dayHolidays = isCurrentMonth ? (HOLIDAY_EVENTS[dateStr] || []) : [];
 
                 return (
                   <div
@@ -207,8 +210,12 @@ function CalendarView() {
                   >
                     <div className="cell-date-num">{date.getDate()}</div>
 
-                    {holiday && (
-                      <div className="cell-holiday">{holiday}</div>
+                    {dayHolidays.length > 0 && (
+                      <div className="cell-holidays">
+                        {dayHolidays.map((ev, i) => (
+                          <div key={i} className="cell-holiday">{getHebrewName(ev.name)}</div>
+                        ))}
+                      </div>
                     )}
 
                     <div className="cell-sessions">

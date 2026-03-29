@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import NewSessionModal from '../components/NewSessionModal';
 import EditSessionModal from '../components/EditSessionModal';
 import { MONTH_NAMES, DOW_FULL, toDateStr } from '../utils/dateUtils';
+import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
+import { apiFetch } from '../utils/api';
 import '../styles/day.css';
+
+const HOLIDAY_EVENTS = getHolidayEventsByDate();
+const TOTAL_GRID_HEIGHT = (24 - 7); // hours
 
 const GRID_START = 7;    // first visible hour
 const GRID_END   = 24;   // last visible hour (exclusive)
@@ -24,7 +29,7 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
   const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
   useEffect(() => {
-    fetch(`/api/sessions?month=${monthStr}`)
+    apiFetch(`/api/sessions?month=${monthStr}`)
       .then(r => r.json())
       .then(data => {
         setSessions((Array.isArray(data) ? data : []).filter(s => s.date === dateStr));
@@ -65,7 +70,14 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
 
         <div className="day-view-header">
           <button className="cal-nav-btn" onClick={prevDay} aria-label="Previous day">‹</button>
-          <h3 className="day-view-title">{label}</h3>
+          <div className="day-view-title-wrap">
+            <h3 className="day-view-title">{label}</h3>
+            {(HOLIDAY_EVENTS[dateStr] || [])
+              .filter(ev => !ev.start_time && !ev.end_time)
+              .map((ev, i) => (
+                <span key={i} className="day-view-holiday">{getHebrewName(ev.name)}</span>
+              ))}
+          </div>
           <button className="cal-nav-btn" onClick={nextDay} aria-label="Next day">›</button>
           <button
             className="new-session-btn day-new-session-btn"
@@ -103,6 +115,26 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
                   })}
                 />
               ))}
+
+              {/* Holiday / Shabbat blocks */}
+              {(HOLIDAY_EVENTS[dateStr] || [])
+                .filter(ev => ev.start_time || ev.end_time)
+                .map((ev, i) => {
+                  const top = ev.start_time ? timeToOffset(ev.start_time) : 0;
+                  const bottom = ev.end_time
+                    ? timeToOffset(ev.end_time)
+                    : TOTAL_GRID_HEIGHT * HOUR_PX;
+                  return (
+                    <div
+                      key={i}
+                      className="holiday-block"
+                      style={{ top, height: Math.max(bottom - top, 4) }}
+                      title={getHebrewName(ev.name)}
+                    >
+                      <span className="holiday-block-name">{getHebrewName(ev.name)}</span>
+                    </div>
+                  );
+                })}
 
               {/* Current time line */}
               {showNowLine && (

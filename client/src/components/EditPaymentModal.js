@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/clients.css';
+import { apiFetch } from '../utils/api';
 
 const METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
 
@@ -22,7 +23,7 @@ function EditPaymentModal({ payment, onClose, onUpdated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/payments/${encodeURIComponent(payment.name)}/${payment.date}`,
         {
           method: 'PUT',
@@ -52,7 +53,7 @@ function EditPaymentModal({ payment, onClose, onUpdated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/payments/${encodeURIComponent(payment.name)}/${payment.date}`,
         { method: 'DELETE' }
       );

@@ -3,7 +3,12 @@ import DayView from './DayView';
 import NewSessionModal from '../components/NewSessionModal';
 import EditSessionModal from '../components/EditSessionModal';
 import { MONTH_NAMES, DOW_LABELS, toDateStr } from '../utils/dateUtils';
+import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
+import { apiFetch } from '../utils/api';
 import '../styles/week.css';
+
+const HOLIDAY_EVENTS = getHolidayEventsByDate();
+const TOTAL_GRID_HEIGHT = (24 - 7); // in hours, multiply by HOUR_PX for px
 
 const GRID_START = 7;    // first visible hour
 const GRID_END   = 24;   // last visible hour (exclusive)
@@ -57,7 +62,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
     const weekDates = new Set(days.map(toDateStr));
 
     Promise.all(
-      months.map(m => fetch(`/api/sessions?month=${m}`).then(r => r.json()).catch(() => []))
+      months.map(m => apiFetch(`/api/sessions?month=${m}`).then(r => r.json()).catch(() => []))
     ).then(results => {
       setSessions(results.flat().filter(s => weekDates.has(s.date)));
     });
@@ -137,6 +142,11 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                   <span className={`week-day-num${isToday ? ' week-day-num--today' : ''}`}>
                     {date.getDate()}
                   </span>
+                  {(HOLIDAY_EVENTS[dateStr] || [])
+                    .filter(ev => !ev.start_time && !ev.end_time)
+                    .map((ev, i) => (
+                      <span key={i} className="week-day-holiday">{getHebrewName(ev.name)}</span>
+                    ))}
                 </div>
 
                 {/* Time body */}
@@ -151,6 +161,26 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                       })}
                     />
                   ))}
+
+                  {/* Holiday / Shabbat blocks */}
+                  {(HOLIDAY_EVENTS[dateStr] || [])
+                    .filter(ev => ev.start_time || ev.end_time)
+                    .map((ev, i) => {
+                      const top = ev.start_time ? timeToOffset(ev.start_time) : 0;
+                      const bottom = ev.end_time
+                        ? timeToOffset(ev.end_time)
+                        : TOTAL_GRID_HEIGHT * HOUR_PX;
+                      return (
+                        <div
+                          key={i}
+                          className="holiday-block"
+                          style={{ top, height: Math.max(bottom - top, 4) }}
+                          title={getHebrewName(ev.name)}
+                        >
+                          <span className="holiday-block-name">{getHebrewName(ev.name)}</span>
+                        </div>
+                      );
+                    })}
 
                   {isToday && showNow && (
                     <div className="week-now-line" style={{ top: nowTop }} />

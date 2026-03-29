@@ -31,11 +31,25 @@
   flex-shrink: 0;
 }
 
-.day-view-title {
+.day-view-title-wrap {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.day-view-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+  text-align: center;
+}
+
+.day-view-holiday {
+  font-size: 11px;
+  color: #f97316;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -130,6 +144,31 @@
   height: 10px;
   border-radius: 50%;
   background: #e05555;
+}
+
+/* Holiday / Shabbat blocks */
+.holiday-block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(249, 115, 22, 0.12);
+  border-left: 3px solid rgba(249, 115, 22, 0.7);
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  padding: 3px 6px;
+}
+
+.holiday-block-name {
+  font-size: 10px;
+  color: #f97316;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
 }
 
 /* Session blocks */

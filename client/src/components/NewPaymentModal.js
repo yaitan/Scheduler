@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
+import { apiFetch } from '../utils/api';
 import '../styles/datepicker-theme.css';
 
 const METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
@@ -21,7 +22,7 @@ function NewPaymentModal({ initialClient, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('/api/clients')
+    apiFetch('/api/clients')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setClients(data); })
       .catch(() => {});
@@ -32,7 +33,7 @@ function NewPaymentModal({ initialClient, onClose, onCreated }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/payments', {
+      const res = await apiFetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
