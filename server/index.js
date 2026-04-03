@@ -24,6 +24,12 @@ app.use('/api/clients', require('./routes/clients'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/payments', require('./routes/payments'));
 
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../client/build')));
+app.get(/^(?!\/api).*/, (_req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
