@@ -95,13 +95,16 @@ router.put('/:client/:date/:time', (req, res) => {
   if (hasOverlap(name, targetDate, targetTime, duration, time))
     return res.status(409).json({ error: 'Session overlaps with an existing session' });
 
+  const sessionDateTime = new Date(`${targetDate}T${targetTime}`);
+  const resolvedStatus = sessionDateTime > new Date() ? 'Scheduled' : status;
+
   const result = db.prepare(`
     UPDATE sessions SET date = ?, time = ?, duration = ?, status = ?
     WHERE client_name = ? AND date = ? AND time = ?
-  `).run(targetDate, targetTime, duration, status, name, date, time);
+  `).run(targetDate, targetTime, duration, resolvedStatus, name, date, time);
 
   if (result.changes === 0) return res.status(404).json({ error: 'Session not found' });
-  res.json({ name, date: targetDate, time: targetTime, duration, status });
+  res.json({ name, date: targetDate, time: targetTime, duration, status: resolvedStatus });
 });
 
 // DELETE /api/sessions/:client/:date/:time — delete session
