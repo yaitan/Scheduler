@@ -2,7 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DB_PATH = path.join(__dirname, 'scheduler.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'scheduler.db');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 const db = new DatabaseSync(DB_PATH);
