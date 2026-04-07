@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import DayView from './DayView';
 import NewSessionModal from '../components/NewSessionModal';
 import EditSessionModal from '../components/EditSessionModal';
-import { MONTH_NAMES, DOW_LABELS, toDateStr } from '../utils/dateUtils';
+import { MONTH_NAMES, DOW_LABELS, toDateStr, nowInIsrael } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
 import '../styles/week.css';
@@ -81,7 +81,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
   }
 
   const hours    = Array.from({ length: GRID_END - GRID_START }, (_, i) => GRID_START + i);
-  const now      = new Date();
+  const now      = nowInIsrael();
   const todayStr = toDateStr(now);
   const nowTop   = (now.getHours() - GRID_START + now.getMinutes() / 60) * HOUR_PX;
   const showNow  = nowTop >= 0 && nowTop <= (GRID_END - GRID_START) * HOUR_PX;
@@ -98,7 +98,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
 
       {/* Top bar */}
       <div className="week-topbar">
-        <button className="week-back-btn" onClick={onBack}>← Month</button>
+        <button className="week-back-btn" onClick={onBack}>← </button>
         <div className="week-nav">
           <button className="cal-nav-btn" onClick={prevWeek} aria-label="Previous week">‹</button>
           <span className="week-title">{weekLabel(days)}</span>
@@ -109,7 +109,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
           style={{ justifySelf: 'end' }}
           onClick={() => setNewSession({})}
         >
-          + New Session
+          +
         </button>
       </div>
 
@@ -122,7 +122,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
             <div className="week-time-corner" />
             {hours.map((h, i) => (
               <div key={h} className={`week-time-label${i === 0 ? ' week-time-label--first' : ''}`}>
-                {String(h).padStart(2, '0')}:00
+                {String(h)}
               </div>
             ))}
           </div>

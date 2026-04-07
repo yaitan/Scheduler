@@ -16,7 +16,13 @@ const VIEWS = {
 function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
   const [activeView, setActiveView] = useState('calendar');
+  const [calendarKey, setCalendarKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  function goToCurrentMonth() {
+    setActiveView('calendar');
+    setCalendarKey(k => k + 1);
+  }
 
   useEffect(() => {
     function handleLogout() {
@@ -52,10 +58,10 @@ function App() {
             <span />
             <span />
           </button>
-          <h1 className="app-header-title">Tutoring Scheduler</h1>
+          <h1 className="app-header-title" onClick={goToCurrentMonth} style={{ cursor: 'pointer' }}>Tutoring Scheduler</h1>
         </header>
         <main className="app-main">
-          <ActiveView />
+          <ActiveView key={activeView === 'calendar' ? calendarKey : undefined} />
         </main>
       </div>
     </div>

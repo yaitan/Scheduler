@@ -4,7 +4,7 @@ import DayView from './DayView';
 import NewSessionModal from '../components/NewSessionModal';
 import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
-import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber } from '../utils/dateUtils';
+import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber, nowInIsrael } from '../utils/dateUtils';
 
 const HOLIDAY_EVENTS = getHolidayEventsByDate();
 import '../styles/calendar.css';
@@ -40,7 +40,7 @@ function buildCalendarWeeks(year, month) {
 }
 
 function CalendarView() {
-  const today = new Date();
+  const today = nowInIsrael();
   const todayStr = toDateStr(today);
 
   const [year, setYear] = useState(today.getFullYear());
@@ -132,7 +132,7 @@ function CalendarView() {
     );
   }
 
-  const formatHours = h => (h % 1 === 0 ? `${h}` : h.toFixed(1));
+  const formatHours = h => parseFloat(h.toFixed(2)).toString();
 
   return (
     <div className="calendar">
@@ -146,7 +146,7 @@ function CalendarView() {
         </div>
         <div className="calendar-header-actions">
           <button className="new-session-btn" onClick={() => setNewSessionOpen(true)}>
-            + New Session
+            +
           </button>
         </div>
       </div>

@@ -11,10 +11,12 @@
 
 .week-topbar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
+  gap: 6px;
   padding-bottom: 12px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .week-back-btn {
@@ -36,15 +38,18 @@
 .week-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  justify-content: center;
+  min-width: 0;
 }
 
 .week-title {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 240px;
   text-align: center;
+  min-width: 0;
+  word-break: break-word;
 }
 
 /* ── Scrollable grid container ──────────────────────────────── */
@@ -67,23 +72,22 @@
 /* ── Sticky time-label column ───────────────────────────────── */
 
 .week-time-col {
-  width: 48px;
+  width: 28px;
   flex-shrink: 0;
   position: sticky;
   left: 0;
   z-index: 10;
   background: var(--bg-primary);
+  border: 1px solid var(--border);
 }
 
 /* Top-left corner cell — sticky both axes */
 .week-time-corner {
-  min-height: 40px;
-  height: auto;
+  height: 56px;
   position: sticky;
   top: 0;
   z-index: 15;
   background: var(--bg-primary);
-  border-bottom: 1px solid var(--border);
 }
 
 .week-time-label {
@@ -119,12 +123,11 @@
 /* ── Day column header ───────────────────────────────────────── */
 
 .week-day-header {
-  min-height: 40px;
-  height: auto;
+  height: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: start;
   gap: 1px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;

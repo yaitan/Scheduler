@@ -3,6 +3,7 @@ import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
 import { apiFetch } from '../utils/api';
+import { nowInIsrael } from '../utils/dateUtils';
 import '../styles/datepicker-theme.css';
 
 function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
@@ -29,7 +30,7 @@ function NewSessionModal({ initialDate, initialTime, onClose, onCreated }) {
   function buildWarnings() {
     const w = [];
     if (date) {
-      const today = new Date();
+      const today = nowInIsrael();
       today.setHours(0, 0, 0, 0);
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);

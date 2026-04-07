@@ -1,3 +1,17 @@
+// Returns a Date object whose .getFullYear()/.getMonth()/.getDate()/.getHours()/.getMinutes()
+// all reflect the current wall-clock time in Israel (Asia/Jerusalem).
+export function nowInIsrael() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const get = type => parseInt(parts.find(p => p.type === type).value, 10);
+  return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+}
+
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',

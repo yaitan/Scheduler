@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import NewSessionModal from '../components/NewSessionModal';
 import EditSessionModal from '../components/EditSessionModal';
-import { MONTH_NAMES, DOW_FULL, toDateStr } from '../utils/dateUtils';
+import { MONTH_NAMES, DOW_FULL, toDateStr, nowInIsrael } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
 import '../styles/day.css';
@@ -59,12 +60,12 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
   const label = `${DOW_FULL[date.getDay()]}, ${MONTH_NAMES[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   const hours  = Array.from({ length: GRID_END - GRID_START }, (_, i) => GRID_START + i);
 
-  const now = new Date();
+  const now = nowInIsrael();
   const isToday  = toDateStr(now) === dateStr;
   const nowOffset = (now.getHours() - GRID_START + now.getMinutes() / 60) * HOUR_PX;
   const showNowLine = isToday && nowOffset >= 0 && nowOffset <= (GRID_END - GRID_START) * HOUR_PX;
 
-  return (
+  return createPortal(
     <div className="day-view-overlay" onClick={onClose}>
       <div className="day-view-modal" onClick={e => e.stopPropagation()}>
 
@@ -181,7 +182,8 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
           onCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 

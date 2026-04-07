@@ -13,10 +13,23 @@ function initDb() {
   console.log('Database initialized');
 }
 
-function autoCompleteSessions() {
+function nowInIsrael() {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const get = type => parseInt(parts.find(p => p.type === type).value, 10);
+  return {
+    today: `${get('year')}-${String(get('month')).padStart(2, '0')}-${String(get('day')).padStart(2, '0')}`,
+    currentMinutes: get('hour') * 60 + get('minute'),
+  };
+}
+
+function autoCompleteSessions() {
+  const { today, currentMinutes } = nowInIsrael();
 
   db.exec(`
     UPDATE sessions
