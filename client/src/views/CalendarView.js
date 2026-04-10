@@ -40,7 +40,7 @@ function buildCalendarWeeks(year, month) {
   return weeks;
 }
 
-function CalendarView() {
+function CalendarView({ onNavigate }) {
   const today = nowInIsrael();
   const todayStr = toDateStr(today);
 
@@ -172,10 +172,10 @@ function CalendarView() {
 
       {/* Summary bar */}
       <div className="calendar-summary">
-        <div className="summary-stat">
+        <button className="summary-stat summary-stat--btn" onClick={() => onNavigate('payments')}>
           <span className="summary-label">Total Owed</span>
           <span className="summary-value summary-value--owed">₪{Math.round(totalOwed).toLocaleString()}</span>
-        </div>
+        </button>
         <div className="summary-divider" />
         <button className="summary-stat summary-stat--btn" onClick={openYearlySummary}>
           <span className="summary-label">Revenue</span>
@@ -183,7 +183,7 @@ function CalendarView() {
         </button>
         <div className="summary-divider" />
         <div className="summary-stat">
-          <span className="summary-label">Hours Scheduled</span>
+          <span className="summary-label">Scheduled</span>
           <span className="summary-value">{formatHours(totalHours)}h</span>
         </div>
       </div>

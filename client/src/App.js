@@ -61,7 +61,9 @@ function App() {
           <h1 className="app-header-title" onClick={goToCurrentMonth} style={{ cursor: 'pointer' }}>Tutoring Scheduler</h1>
         </header>
         <main className="app-main">
-          <ActiveView key={activeView === 'calendar' ? calendarKey : undefined} />
+          {activeView === 'calendar'
+            ? <CalendarView key={calendarKey} onNavigate={setActiveView} />
+            : <ActiveView />}
         </main>
       </div>
     </div>
