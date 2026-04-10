@@ -41,9 +41,7 @@ function ClientsView() {
       </div>
 
       <div className="clients-table-wrap">
-        {loading ? (
-          <div className="clients-empty">Loading…</div>
-        ) : clients.length === 0 ? (
+        {!loading && (clients.length === 0 ? (
           <div className="clients-empty">No clients yet. Add one to get started.</div>
         ) : (
           <table className="clients-table">
@@ -70,7 +68,7 @@ function ClientsView() {
               ))}
             </tbody>
           </table>
-        )}
+        ))}
       </div>
 
       {showAddForm && (

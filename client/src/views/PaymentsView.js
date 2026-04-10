@@ -40,7 +40,7 @@ function PaymentsView() {
 
   function refresh() { setRefreshKey(k => k + 1); }
 
-  if (loading) return <div className="clients-empty">Loading…</div>;
+  if (loading) return null;
 
   return (
     <div className="payments-view">

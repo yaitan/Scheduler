@@ -1,0 +1,140 @@
+/* ── Yearly Summary Modal ───────────────────────────────────── */
+
+
+.yearly-summary-modal .modal-header {
+  justify-content: center;
+  position: relative;
+}
+
+.yearly-summary-modal .modal-header .modal-close {
+  position: absolute;
+  right: 12px;
+}
+
+.yearly-summary-modal {
+  width: min(640px, 92vw);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.yearly-loading {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-secondary);
+}
+
+/* Year totals banner */
+.yearly-totals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 32px;
+  margin-bottom: 20px;
+}
+
+.yearly-total-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.yearly-total-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  margin: 0 24px;
+}
+
+.yearly-total-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.yearly-total-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.yearly-total-value--revenue {
+  color: #4caf50;
+}
+
+/* Month grid */
+.yearly-month-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yearly-month-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.yearly-month-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 0;
+}
+
+.yearly-month-card:hover {
+  border-color: var(--accent, #4caf50);
+  background: var(--bg-hover, var(--bg-primary));
+}
+
+.yearly-month-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  text-align: center;
+}
+
+.yearly-month-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.yearly-month-stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex: 1 1 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yearly-month-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.yearly-month-stat-value--revenue {
+  color: #4caf50;
+}

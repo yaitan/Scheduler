@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import NewSessionModal from '../components/NewSessionModal';
+import YearlySummaryModal from '../components/YearlySummaryModal';
 import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber, nowInIsrael } from '../utils/dateUtils';
@@ -53,6 +54,8 @@ function CalendarView() {
   const [selectedWeekStart, setSelectedWeekStart] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [newSessionOpen, setNewSessionOpen] = useState(false);
+  const [yearlySummaryOpen, setYearlySummaryOpen] = useState(false);
+  const [yearlyData, setYearlyData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -101,13 +104,33 @@ function CalendarView() {
   const totalHours = scheduled.reduce((sum, s) => sum + s.duration, 0);
 
   function prevMonth() {
+    setLoading(true);
     if (month === 0) { setYear(y => y - 1); setMonth(11); }
     else setMonth(m => m - 1);
   }
 
   function nextMonth() {
+    setLoading(true);
     if (month === 11) { setYear(y => y + 1); setMonth(0); }
     else setMonth(m => m + 1);
+  }
+
+  function openYearlySummary() {
+    const requests = Array.from({ length: 12 }, (_, i) => {
+      const monthStr = `${year}-${String(i + 1).padStart(2, '0')}`;
+      return apiFetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []);
+    });
+    Promise.all(requests).then(results => {
+      const data = results.map(sessions => {
+        const completed = Array.isArray(sessions) ? sessions.filter(s => s.status === 'Completed') : [];
+        return {
+          revenue: completed.reduce((sum, s) => sum + s.duration * (clientRates[s.name] || 0), 0),
+          hours: completed.reduce((sum, s) => sum + s.duration, 0),
+        };
+      });
+      setYearlyData(data);
+      setYearlySummaryOpen(true);
+    });
   }
 
   function handleWeekClick(weekStart) {
@@ -154,14 +177,14 @@ function CalendarView() {
       {/* Summary bar */}
       <div className="calendar-summary">
         <div className="summary-stat">
-          <span className="summary-label">Revenue</span>
-          <span className="summary-value">₪{totalRevenue.toLocaleString()}</span>
-        </div>
-        <div className="summary-divider" />
-        <div className="summary-stat">
           <span className="summary-label">Total Owed</span>
           <span className="summary-value summary-value--owed">₪{Math.round(totalOwed).toLocaleString()}</span>
         </div>
+        <div className="summary-divider" />
+        <button className="summary-stat summary-stat--btn" onClick={openYearlySummary}>
+          <span className="summary-label">Revenue</span>
+          <span className="summary-value summary-value--revenue">₪{totalRevenue.toLocaleString()}</span>
+        </button>
         <div className="summary-divider" />
         <div className="summary-stat">
           <span className="summary-label">Hours Scheduled</span>
@@ -178,10 +201,7 @@ function CalendarView() {
       </div>
 
       {/* Calendar grid */}
-      {loading ? (
-        <div className="calendar-loading">Loading…</div>
-      ) : (
-        <div className="calendar-body">
+      <div className="calendar-body" style={{ opacity: loading ? 0 : 1, transition: 'opacity 0.15s' }}>
           {weeks.map((week, wi) => (
             <div key={wi} className="calendar-week">
               <div
@@ -235,8 +255,7 @@ function CalendarView() {
               })}
             </div>
           ))}
-        </div>
-      )}
+      </div>
 
       {/* Day view modal */}
       {subView === 'day' && selectedDay && (
@@ -253,6 +272,16 @@ function CalendarView() {
         <NewSessionModal
           onClose={() => setNewSessionOpen(false)}
           onCreated={() => setRefreshKey(k => k + 1)}
+        />
+      )}
+
+      {/* Yearly summary modal */}
+      {yearlySummaryOpen && yearlyData && (
+        <YearlySummaryModal
+          year={year}
+          monthlyData={yearlyData}
+          onClose={() => { setYearlySummaryOpen(false); setYearlyData(null); }}
+          onMonthClick={mi => { setMonth(mi); setYearlySummaryOpen(false); setYearlyData(null); }}
         />
       )}
     </div>
