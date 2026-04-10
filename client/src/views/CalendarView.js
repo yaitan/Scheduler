@@ -104,25 +104,21 @@ function CalendarView() {
   const totalHours = scheduled.reduce((sum, s) => sum + s.duration, 0);
 
   function prevMonth() {
-    setLoading(true);
     if (month === 0) { setYear(y => y - 1); setMonth(11); }
     else setMonth(m => m - 1);
   }
 
   function nextMonth() {
-    setLoading(true);
     if (month === 11) { setYear(y => y + 1); setMonth(0); }
     else setMonth(m => m + 1);
   }
 
   function openYearlySummary() {
-    const requests = Array.from({ length: 12 }, (_, i) => {
-      const monthStr = `${year}-${String(i + 1).padStart(2, '0')}`;
-      return apiFetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []);
-    });
-    Promise.all(requests).then(results => {
-      const data = results.map(sessions => {
-        const completed = Array.isArray(sessions) ? sessions.filter(s => s.status === 'Completed') : [];
+    apiFetch(`/api/sessions?year=${year}`).then(r => r.json()).catch(() => []).then(sessions => {
+      const data = Array.from({ length: 12 }, (_, i) => {
+        const monthPrefix = `${year}-${String(i + 1).padStart(2, '0')}-`;
+        const completed = (Array.isArray(sessions) ? sessions : [])
+          .filter(s => s.status === 'Completed' && s.date.startsWith(monthPrefix));
         return {
           revenue: completed.reduce((sum, s) => sum + s.duration * (clientRates[s.name] || 0), 0),
           hours: completed.reduce((sum, s) => sum + s.duration, 0),
@@ -201,7 +197,8 @@ function CalendarView() {
       </div>
 
       {/* Calendar grid */}
-      <div className="calendar-body" style={{ opacity: loading ? 0 : 1, transition: 'opacity 0.15s' }}>
+      {!loading && (
+        <div className="calendar-body">
           {weeks.map((week, wi) => (
             <div key={wi} className="calendar-week">
               <div
@@ -255,7 +252,8 @@ function CalendarView() {
               })}
             </div>
           ))}
-      </div>
+        </div>
+      )}
 
       {/* Day view modal */}
       {subView === 'day' && selectedDay && (

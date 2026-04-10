@@ -22,16 +22,16 @@ function YearlySummaryModal({ year, monthlyData, onClose, onMonthClick }) {
           {/* Yearly totals */}
           <div className="yearly-totals">
             <div className="yearly-total-item">
-              <span className="yearly-total-label">Total Revenue</span>
+              <span className="yearly-total-label">Revenue</span>
               <span className="yearly-total-value yearly-total-value--revenue">
                 ₪{Math.round(yearRevenue).toLocaleString()}
               </span>
             </div>
             <div className="yearly-total-divider" />
             <div className="yearly-total-item">
-              <span className="yearly-total-label">Hours Completed</span>
+              <span className="yearly-total-label">Hours</span>
               <span className="yearly-total-value">
-                {formatHours(yearHours)}h
+                {formatHours(yearHours)}
               </span>
             </div>
           </div>
@@ -43,18 +43,14 @@ function YearlySummaryModal({ year, monthlyData, onClose, onMonthClick }) {
                 {row.map(mi => (
                   <div key={mi} className="yearly-month-card" onClick={() => onMonthClick(mi)}>
                     <div className="yearly-month-name">{MONTH_NAMES[mi]}</div>
-                    <div className="yearly-month-stat">
-                      <span className="yearly-month-stat-label">Revenue</span>
-                      <span className="yearly-month-stat-value yearly-month-stat-value--revenue">
-                        ₪{Math.round(monthlyData[mi].revenue).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="yearly-month-stat">
-                      <span className="yearly-month-stat-label">Hours</span>
-                      <span className="yearly-month-stat-value">
-                        {formatHours(monthlyData[mi].hours)}h
-                      </span>
-                    </div>
+                    <div className="yearly-month-card-divider" />
+                    <span className="yearly-month-stat-value yearly-month-stat-value--revenue">
+                      ₪{Math.round(monthlyData[mi].revenue).toLocaleString()}
+                    </span>
+                    
+                    <span className="yearly-month-stat-value">
+                      {formatHours(monthlyData[mi].hours)}{'\u202F'}h{/*thin space */}
+                    </span>
                   </div>
                 ))}
               </div>

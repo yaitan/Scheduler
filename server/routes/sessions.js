@@ -31,13 +31,16 @@ function hasOverlap(name, date, time, duration, excludeTime = null) {
 router.get('/', (req, res) => {
   autoCompleteSessions();
 
-  const { month, client } = req.query;
+  const { month, year, client } = req.query;
   let sql = 'SELECT client_name AS name, date, time, duration, status FROM sessions WHERE 1=1';
   const params = [];
 
   if (month) {
     sql += ' AND date LIKE ?';
     params.push(`${month}%`);
+  } else if (year) {
+    sql += ' AND date LIKE ?';
+    params.push(`${year}%`);
   }
   if (client) {
     sql += ' AND client_name = ?';
