@@ -271,7 +271,6 @@
   line-height: 1.4;
   background: rgba(249, 115, 22, 0.18);
   color: #f97316;
-  border-left: 2px solid #f97316;
   direction: rtl;
 }
 
@@ -312,19 +311,16 @@
 .session-pill--scheduled {
   background: rgba(74, 144, 217, 0.25);
   color: #7ab8f0;
-  border-left: 2px solid var(--accent-blue);
 }
 
 .session-pill--completed {
   background: rgba(76, 175, 80, 0.2);
   color: #80c783;
-  border-left: 2px solid var(--accent-green);
 }
 
 .session-pill--cancelled {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
-  border-left: 2px solid #555;
   text-decoration: line-through;
 }
 

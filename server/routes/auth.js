@@ -7,7 +7,7 @@ router.post('/verify', (req, res) => {
   if (!password || password !== process.env.APP_PASSWORD) {
     return res.status(401).json({ error: 'Invalid password' });
   }
-  const token = jwt.sign({ ok: true }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  const token = jwt.sign({ ok: true }, process.env.JWT_SECRET);
   res.json({ token });
 });
 
