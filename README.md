@@ -1,45 +1,149 @@
 # Tutoring Scheduler
 
-A personal web app for managing a tutoring business — track sessions, clients, and payments.
+A personal full-stack web app for managing a tutoring business — built to replace a Google Sheets workflow with something purpose-built. Track sessions, clients, and payments from any browser, with a calendar that understands the Israeli Jewish calendar.
+
+---
+
+## Screenshots
+
+### Monthly Calendar View
+![Monthly Calendar](screenshots/Screenshot_2026-04-13_152202.png)
+*Month view with Israeli holidays highlighted in amber. Sessions appear as labeled blocks sorted by time within each day cell. The summary bar at the top shows total owed, revenue, and scheduled hours for the month.*
+
+### Weekly View
+![Weekly View](screenshots/Screenshot_2026-04-13_152252.png)
+*Week view with hour-block layout. Shabbat is shaded from Friday candle-lighting time. Israeli national holidays (Yom HaZikaron, Yom HaAtzmaut) appear with Hebrew labels in the column header.*
+
+### Day View
+![Day View](screenshots/Screenshot_2026-04-13_152310.png)
+*Day view as an overlay over the current view. Shabbat shading begins at candle-lighting time. Clicking a blank time slot opens the Add Session form pre-filled with that time.*
+
+### Add Session Form
+![Add Session Form](screenshots/Screenshot_2026-04-13_152326.png)
+*Session form with client dropdown, DD/MM/YYYY date input, 12-hour time picker, and duration field. Date pre-fills based on context — the clicked day, the current week, or today.*
+
+### Clients Page
+![Clients Page](screenshots/Screenshot_2026-04-13_152021.png)
+*All clients in one table: balance owed (red when positive), per-session rate, scheduled hours, completed hours, and total revenue. All figures are derived at query time from sessions and payments — nothing is stored statically.*
+
+### Payments Page
+![Payments Page](screenshots/Screenshot_2026-04-13_152034.png)
+*Two-panel layout: clients with outstanding balances at the top (sorted by amount owed), full payment history below. Supports PayBox, Bit, Bank Transfer, Cash, and Other.*
+
+### Yearly Summary
+![Yearly Summary](screenshots/Screenshot_2026-04-13_152211.png)
+*Year-at-a-glance modal showing total revenue and hours for the year, broken down by month.*
+
+---
 
 ## Features
 
-- **Calendar views** — monthly, weekly, and daily session views
-- **Session management** — schedule, edit, and track sessions with Scheduled / Completed / Cancelled status; sessions auto-complete after their end time
-- **Client management** — store client details (rate, phone, parent phone) and view stats (hours, revenue, balance owed)
-- **Payments** — log payments by method (PayBox, Bit, Transfer, Cash, Other) with automatic balance calculation
-- **Yearly summary** — revenue and hours broken down by month
-- **Israeli holidays** — Shabbat and national holidays shown on the calendar
-- **Overlap detection** — prevents scheduling conflicting sessions
+### Calendar
+
+- **Three views** — Month, Week, and Day. Navigating into a sub-view and back returns you to the same position in the parent view.
+- **Israeli Jewish holidays** — Shabbat with accurate candle-lighting time shading (dynamically calculated per week in week/day views), national holidays, and chagim shown in Hebrew.
+- **Session blocks** — color-coded by status (blue for Scheduled, green for Completed), sorted by time within each day cell in month view.
+- **Monthly summary bar** — total owed, revenue for the month, and scheduled hours always visible at the top of month view.
+- **Yearly summary modal** — revenue and hours broken down by month for the full year.
+- **Week number column** — ISO week numbers shown on the left edge of the month grid.
+
+### Sessions
+
+- **Add, edit, and delete** sessions with client, date, time, duration, and status fields.
+- **Status lifecycle** — Scheduled → Completed → Cancelled. Sessions automatically flip from Scheduled to Completed once their end time has passed; this is triggered lazily on page load or any data fetch rather than by a background timer.
+- **Overlap detection** — blocks submission if the new session conflicts with an existing one for the same time slot.
+- **Smart form defaults** — date pre-fills from context (day view click, current week, or today); time pre-fills from the clicked hour slot in day view.
+- **Validation warnings** — past dates and unusual hours (before 7am or after 11pm) surface a warning but allow override after acknowledgement.
+
+### Clients
+
+- Store name, per-session rate, phone number, and parent phone number.
+- All financial stats (balance owed, total revenue, hours completed, hours scheduled) are derived at query time from the Sessions and Payments tables — never stored directly.
+- Per-client profile with upcoming sessions and payment history accessible from the clients list.
+
+### Payments
+
+- Log payments by method: **PayBox, Bit, Bank Transfer, Cash, Other**.
+- Optional receipt/invoice number field.
+- Payments can exceed the current balance, supporting clients who pay ahead for future sessions.
+- Balance is always live: `SUM(completed session costs) − SUM(payments)`.
+
+### Auth
+
+- Single-password login secured by JWT. The token is stored client-side and sent with every API request.
+
+---
 
 ## Tech Stack
 
-**Frontend:** React 18, Create React App, react-datepicker  
-**Backend:** Node.js, Express, SQLite (file-based via `node:sqlite`)  
-**Auth:** Single-password login protected by JWT
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, Create React App |
+| Styling | Custom CSS, dark mode by default |
+| Date handling | Custom utilities + `react-datepicker` |
+| Holiday data | Static Hebrew calendar dataset (no external API) |
+| Backend | Node.js + Express |
+| Database | SQLite via Node's built-in `node:sqlite` (no ORM) |
+| Auth | JWT (JSON Web Tokens) |
+| Dev tooling | `concurrently` for running client + server in parallel |
+
+---
 
 ## Project Structure
 
 ```
-├── client/          # React frontend
+├── client/
 │   └── src/
-│       ├── components/   # Modals and shared UI
-│       ├── views/        # CalendarView, ClientsView, PaymentsView, WeekView, DayView
-│       ├── styles/       # CSS per view/component
-│       └── utils/        # API wrapper, date utilities, holiday data
-└── server/          # Express backend
-    ├── routes/       # auth, clients, sessions, payments
-    ├── middleware/   # JWT auth guard
-    └── db/           # SQLite setup and schema
+│       ├── components/      # Shared modals and UI (SessionModal, PaymentModal, ClientModal, Sidebar)
+│       ├── views/           # CalendarView, WeekView, DayView, ClientsView, PaymentsView
+│       ├── styles/          # CSS files scoped per view and component
+│       └── utils/           # API wrapper, date helpers, static holiday data
+└── server/
+    ├── routes/              # Express routers: auth, clients, sessions, payments
+    ├── middleware/           # JWT auth guard applied to all protected routes
+    └── db/                  # SQLite setup and schema
 ```
+
+The frontend and backend are separate packages under a monorepo root. `npm run dev` uses `concurrently` to start both simultaneously.
+
+---
+
+## Data Model
+
+### Clients
+| Field | Notes |
+|---|---|
+| Name | Primary key — unique at personal scale |
+| Rate | Per-session rate in ₪ |
+| Phone | Student contact |
+| Parent Phone | Optional |
+
+### Sessions
+| Field | Notes |
+|---|---|
+| Client + Date + Time | Composite primary key |
+| Duration | In hours; decimals supported (e.g. 1.5) |
+| Status | `Scheduled` / `Completed` / `Cancelled` |
+
+### Payments
+| Field | Notes |
+|---|---|
+| Client + Date | Composite primary key |
+| Amount | In ₪ |
+| Method | PayBox / Bit / Transfer / Cash / Other |
+| Receipt # | Optional reference number |
+
+All balance and revenue figures are computed from these three tables at query time.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+ (required for `node:sqlite`)
 
-### Install dependencies
+### Install
 
 ```bash
 npm install
@@ -47,11 +151,11 @@ cd client && npm install
 cd ../server && npm install
 ```
 
-### Environment variables
+### Configure
 
 Create `server/.env`:
 
-```
+```env
 APP_PASSWORD=your_password
 JWT_SECRET=your_secret
 PORT=3001
@@ -69,6 +173,20 @@ Starts the Express backend on port 3001 and the React dev server on port 3000 co
 ### Build for production
 
 ```bash
-npm run build   # builds the React app
+npm run build   # builds the React frontend
 npm start       # serves everything from Express on port 3001
 ```
+
+---
+
+## Notes
+
+**Holiday data** is stored as a static dataset rather than fetched from an external API, keeping the app fully self-contained with no runtime dependency on third-party calendar services.
+
+**Shabbat shading** in week and day views is calculated dynamically per date using the standard 18-minutes-before-sunset approach adjusted for Israel's latitude.
+
+**No ORM** — all queries are written directly in SQL via `node:sqlite`, the SQLite module built into Node 22.
+
+---
+
+Icon from [Twitter Twemoji](https://github.com/twitter/twemoji) (CC-BY 4.0).
