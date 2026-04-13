@@ -7,31 +7,31 @@ A personal full-stack web app for managing a tutoring business — built to repl
 ## Screenshots
 
 ### Monthly Calendar View
-![Monthly Calendar](screenshots/Screenshot_2026-04-13_152202.png)
+![Monthly Calendar](screenshots/monthly_calendar.png)
 *Month view with Israeli holidays highlighted in amber. Sessions appear as labeled blocks sorted by time within each day cell. The summary bar at the top shows total owed, revenue, and scheduled hours for the month.*
 
 ### Weekly View
-![Weekly View](screenshots/Screenshot_2026-04-13_152252.png)
+![Weekly View](screenshots/weekly_view.png)
 *Week view with hour-block layout. Shabbat is shaded from Friday candle-lighting time. Israeli national holidays (Yom HaZikaron, Yom HaAtzmaut) appear with Hebrew labels in the column header.*
 
 ### Day View
-![Day View](screenshots/Screenshot_2026-04-13_152310.png)
+![Day View](screenshots/day_view.png)
 *Day view as an overlay over the current view. Shabbat shading begins at candle-lighting time. Clicking a blank time slot opens the Add Session form pre-filled with that time.*
 
 ### Add Session Form
-![Add Session Form](screenshots/Screenshot_2026-04-13_152326.png)
+![Add Session Form](screenshots/add_session_form.png)
 *Session form with client dropdown, DD/MM/YYYY date input, 12-hour time picker, and duration field. Date pre-fills based on context — the clicked day, the current week, or today.*
 
 ### Clients Page
-![Clients Page](screenshots/Screenshot_2026-04-13_152021.png)
+![Clients Page](screenshots/clients_page.png)
 *All clients in one table: balance owed (red when positive), per-session rate, scheduled hours, completed hours, and total revenue. All figures are derived at query time from sessions and payments — nothing is stored statically.*
 
 ### Payments Page
-![Payments Page](screenshots/Screenshot_2026-04-13_152034.png)
+![Payments Page](screenshots/payments_page.png)
 *Two-panel layout: clients with outstanding balances at the top (sorted by amount owed), full payment history below. Supports PayBox, Bit, Bank Transfer, Cash, and Other.*
 
 ### Yearly Summary
-![Yearly Summary](screenshots/Screenshot_2026-04-13_152211.png)
+![Yearly Summary](screenshots/yearly_summary.png)
 *Year-at-a-glance modal showing total revenue and hours for the year, broken down by month.*
 
 ---
