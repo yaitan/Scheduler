@@ -1,30 +1,32 @@
 -- Tutoring Scheduler — SQLite Schema
 
 CREATE TABLE IF NOT EXISTS clients (
-  name        TEXT PRIMARY KEY,
-  rate        REAL NOT NULL,
-  phone       TEXT,
+  id           INTEGER PRIMARY KEY,
+  name         TEXT NOT NULL UNIQUE,
+  rate         REAL NOT NULL,
+  phone        TEXT,
   parent_phone TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
-  client_name TEXT NOT NULL,
+  id          INTEGER PRIMARY KEY,
+  client_id   INTEGER NOT NULL,
   date        TEXT NOT NULL,   -- ISO 8601: YYYY-MM-DD
   time        TEXT NOT NULL,   -- HH:MM (24-hour)
-  duration    REAL NOT NULL,    -- hours (e.g. 1.5 = 90 minutes)
+  duration    INTEGER NOT NULL, -- minutes (e.g. 90 = 1h30m)
+  rate        REAL NOT NULL,    -- rate at time of session (duration * rate = session cost)
   status      TEXT NOT NULL DEFAULT 'Scheduled'
                 CHECK(status IN ('Scheduled', 'Completed', 'Cancelled')),
-  PRIMARY KEY (client_name, date, time),
-  FOREIGN KEY (client_name) REFERENCES clients(name)
+  FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 
 CREATE TABLE IF NOT EXISTS payments (
-  client_name    TEXT NOT NULL,
+  id             INTEGER PRIMARY KEY,
+  client_id      INTEGER NOT NULL,
   date           TEXT NOT NULL,  -- ISO 8601: YYYY-MM-DD
   amount         REAL NOT NULL,
   method         TEXT NOT NULL
                    CHECK(method IN ('PayBox', 'Bit', 'Transfer', 'Cash', 'Other')),
   receipt_number TEXT,
-  PRIMARY KEY (client_name, date),
-  FOREIGN KEY (client_name) REFERENCES clients(name)
+  FOREIGN KEY (client_id) REFERENCES clients(id)
 );

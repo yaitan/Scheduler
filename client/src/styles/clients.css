@@ -218,6 +218,32 @@
   border-color: #e07b54;
 }
 
+.duration-input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+  user-select: none;
+}
+
+.duration-seg {
+  padding: 2px 4px;
+  border-radius: 3px;
+  min-width: 1.5ch;
+  text-align: center;
+  outline: none;
+  color: var(--text-primary);
+}
+
+.duration-seg--active {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.duration-colon {
+  color: var(--text-primary);
+}
+
 .form-static {
   font-size: 14px;
   color: var(--text-primary);

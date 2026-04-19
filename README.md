@@ -2,6 +2,8 @@
 
 A personal full-stack web app for managing a tutoring business — built to replace a Google Sheets workflow with something purpose-built. Track sessions, clients, and payments from any browser, with a calendar that understands the Israeli Jewish calendar.
 
+For a deep dive into the stack, data model, API routes, and design decisions, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ---
 
 ## Screenshots
@@ -20,7 +22,7 @@ A personal full-stack web app for managing a tutoring business — built to repl
 
 ### Add Session Form
 ![Add Session Form](screenshots/add_session_form.png)
-*Session form with client dropdown, DD/MM/YYYY date input, 12-hour time picker, and duration field. Date pre-fills based on context — the clicked day, the current week, or today.*
+*Session form with client dropdown, DD/MM/YYYY date input, 12-hour time picker, H:MM segment duration input, and rate field. Date pre-fills based on context — the clicked day, the current week, or today.*
 
 ### Clients Page
 ![Clients Page](screenshots/clients_page.png)
@@ -49,7 +51,9 @@ A personal full-stack web app for managing a tutoring business — built to repl
 
 ### Sessions
 
-- **Add, edit, and delete** sessions with client, date, time, duration, and status fields.
+- **Add, edit, and delete** sessions with client, date, time, duration, rate, and status fields.
+- **Per-session rate** — each session stores the hourly rate at the time it was booked, so billing remains accurate even if a client's rate changes later.
+- **H:MM duration input** — a custom segment input for hours and minutes; auto-advances between segments, supports arrow-key increment/decrement, enforces a 30-minute minimum.
 - **Status lifecycle** — Scheduled → Completed → Cancelled. Sessions automatically flip from Scheduled to Completed once their end time has passed; this is triggered lazily on page load or any data fetch rather than by a background timer.
 - **Overlap detection** — blocks submission if the new session conflicts with an existing one for the same time slot.
 - **Smart form defaults** — date pre-fills from context (day view click, current week, or today); time pre-fills from the clicked hour slot in day view.
@@ -65,8 +69,9 @@ A personal full-stack web app for managing a tutoring business — built to repl
 
 - Log payments by method: **PayBox, Bit, Bank Transfer, Cash, Other**.
 - Optional receipt/invoice number field.
+- **Balance click shortcut** — clicking a client in the "clients owed" panel pre-fills the payment form with their outstanding balance.
 - Payments can exceed the current balance, supporting clients who pay ahead for future sessions.
-- Balance is always live: `SUM(completed session costs) − SUM(payments)`.
+- Balance is always live: `SUM(completed session duration × rate / 60) − SUM(payments)`.
 
 ### Auth
 
@@ -94,7 +99,9 @@ A personal full-stack web app for managing a tutoring business — built to repl
 ```
 ├── client/
 │   └── src/
-│       ├── components/      # Shared modals and UI (SessionModal, PaymentModal, ClientModal, Sidebar)
+│       ├── components/      # Unified modals (SessionModal, PaymentModal, ClientModal,
+│       │                    #   ConfirmDeleteModal) and shared UI (Sidebar, LoginScreen,
+│       │                    #   YearlySummaryModal)
 │       ├── views/           # CalendarView, WeekView, DayView, ClientsView, PaymentsView
 │       ├── styles/          # CSS files scoped per view and component
 │       └── utils/           # API wrapper, date helpers, static holiday data
@@ -113,22 +120,28 @@ The frontend and backend are separate packages under a monorepo root. `npm run d
 ### Clients
 | Field | Notes |
 |---|---|
-| Name | Primary key — unique at personal scale |
-| Rate | Per-session rate in ₪ |
+| ID | Integer primary key (auto-assigned) |
+| Name | Unique — still required to be unique |
+| Rate | Default per-session rate in ₪/hour |
 | Phone | Student contact |
 | Parent Phone | Optional |
 
 ### Sessions
 | Field | Notes |
 |---|---|
-| Client + Date + Time | Composite primary key |
-| Duration | In hours; decimals supported (e.g. 1.5) |
+| ID | Integer primary key (auto-assigned) |
+| Client | Foreign key → `clients.id` |
+| Date + Time | Session date (YYYY-MM-DD) and time (HH:MM) |
+| Duration | In minutes |
+| Rate | Hourly rate captured at booking time (₪/hour); `cost = duration × rate / 60` |
 | Status | `Scheduled` / `Completed` / `Cancelled` |
 
 ### Payments
 | Field | Notes |
 |---|---|
-| Client + Date | Composite primary key |
+| ID | Integer primary key (auto-assigned) |
+| Client | Foreign key → `clients.id` |
+| Date | Payment date (YYYY-MM-DD) |
 | Amount | In ₪ |
 | Method | PayBox / Bit / Transfer / Cash / Other |
 | Receipt # | Optional reference number |

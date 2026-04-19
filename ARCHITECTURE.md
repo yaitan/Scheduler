@@ -45,12 +45,10 @@ Scheduler/
 │       │   └── PaymentsView.js  # Owed panel + full payment history
 │       │
 │       ├── components/          # Modals and shared UI
-│       │   ├── NewSessionModal.js
-│       │   ├── EditSessionModal.js
-│       │   ├── NewPaymentModal.js
-│       │   ├── EditPaymentModal.js
-│       │   ├── NewClientModal.js
-│       │   ├── EditClientModal.js
+│       │   ├── SessionModal.js       # Unified new + edit session modal
+│       │   ├── PaymentModal.js       # Unified new + edit payment modal
+│       │   ├── ClientModal.js        # Unified new + edit client modal
+│       │   ├── ConfirmDeleteModal.js # Reusable delete-confirmation overlay
 │       │   ├── YearlySummaryModal.js
 │       │   ├── LoginScreen.js
 │       │   └── Sidebar.js
@@ -71,7 +69,6 @@ Scheduler/
 │           ├── api.js                                  # apiFetch wrapper + token management
 │           ├── dateUtils.js                            # Date arithmetic helpers
 │           ├── israeliHolidays.js                      # Holiday lookup functions
-│           ├── jewishHolidays.js                       # Shabbat candle-lighting calculation
 │           └── israeli_holidays_shabbat_2026_2027.json # Static holiday dataset
 │
 └── server/                      # Express backend
@@ -101,14 +98,15 @@ Scheduler/
 
 ```sql
 CREATE TABLE IF NOT EXISTS clients (
-  name         TEXT PRIMARY KEY,
+  id           INTEGER PRIMARY KEY,
+  name         TEXT NOT NULL UNIQUE,
   rate         REAL NOT NULL,
   phone        TEXT,
   parent_phone TEXT
 );
 ```
 
-`name` is the primary key. This is intentional at personal scale where no two clients share a name. See [Design Decisions](#5-key-design-decisions).
+`id` is a synthetic integer primary key. `name` carries a `UNIQUE` constraint — at personal scale no two clients share a name. All cross-table foreign keys reference `clients.id`. See [Design Decisions](#5-key-design-decisions).
 
 All financial and session statistics (balance owed, total hours, revenue, upcoming sessions) are **derived at query time** — never stored in this table.
 
@@ -118,18 +116,19 @@ All financial and session statistics (balance owed, total hours, revenue, upcomi
 
 ```sql
 CREATE TABLE IF NOT EXISTS sessions (
-  client_name TEXT NOT NULL,
-  date        TEXT NOT NULL,   -- ISO 8601: YYYY-MM-DD
-  time        TEXT NOT NULL,   -- HH:MM (24-hour)
-  duration    REAL NOT NULL,   -- hours; 1.5 = 90 min
+  id          INTEGER PRIMARY KEY,
+  client_id   INTEGER NOT NULL,
+  date        TEXT NOT NULL,    -- ISO 8601: YYYY-MM-DD
+  time        TEXT NOT NULL,    -- HH:MM (24-hour)
+  duration    INTEGER NOT NULL, -- minutes; 90 = 1h 30m
+  rate        REAL NOT NULL,    -- ₪/hour at time of session; cost = duration * rate / 60
   status      TEXT NOT NULL DEFAULT 'Scheduled'
                 CHECK(status IN ('Scheduled', 'Completed', 'Cancelled')),
-  PRIMARY KEY (client_name, date, time),
-  FOREIGN KEY (client_name) REFERENCES clients(name)
+  FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 ```
 
-The composite PK `(client_name, date, time)` encodes the business constraint that one client cannot have two sessions at the same moment. Overlap across all clients (regardless of name) is enforced in application code, not the DB, because the constraint is about physical time slots, not the tuple.
+Each session has a synthetic integer `id` as its primary key. Duration is stored in **minutes** (integer). `rate` captures the hourly rate at booking time, so billing remains accurate even if the client's default rate is later changed. Overlap across all non-cancelled sessions on a given date is enforced in application code via `hasOverlap()` — the constraint requires time-interval arithmetic that a DB unique index cannot express.
 
 ---
 
@@ -137,23 +136,23 @@ The composite PK `(client_name, date, time)` encodes the business constraint tha
 
 ```sql
 CREATE TABLE IF NOT EXISTS payments (
-  client_name    TEXT NOT NULL,
-  date           TEXT NOT NULL,  -- ISO 8601: YYYY-MM-DD
+  id             INTEGER PRIMARY KEY,
+  client_id      INTEGER NOT NULL,
+  date           TEXT NOT NULL,   -- ISO 8601: YYYY-MM-DD
   amount         REAL NOT NULL,
   method         TEXT NOT NULL
                    CHECK(method IN ('PayBox', 'Bit', 'Transfer', 'Cash', 'Other')),
   receipt_number TEXT,
-  PRIMARY KEY (client_name, date),
-  FOREIGN KEY (client_name) REFERENCES clients(name)
+  FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 ```
 
-The composite PK `(client_name, date)` means at most one payment per client per calendar date. This was an acceptable simplification; if two payments are received from the same client on the same day they would need to be combined.
+Payments are identified by a synthetic integer `id`.
 
 **Balance formula** used everywhere:
 
 ```
-balance_owed = SUM(completed session hours × rate) − SUM(payments)
+balance_owed = SUM(completed session duration_minutes × rate / 60) − SUM(payments)
 ```
 
 A negative balance means the client has paid ahead.
@@ -174,33 +173,32 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/clients` | All clients with derived stats (total hours, scheduled hours, revenue, balance, last session date). Triggers `autoCompleteSessions`. |
-| `GET` | `/api/clients/:name` | Single client with total/scheduled sessions, hours, balance, and upcoming sessions array |
+| `GET` | `/api/clients` | All clients with derived stats (total minutes, scheduled minutes, revenue, balance, last session date). Triggers `autoCompleteSessions`. |
+| `GET` | `/api/clients/:id` | Single client by integer ID; returns stats and upcoming sessions array |
 | `POST` | `/api/clients` | Create a client (`name`, `rate` required) |
-| `PUT` | `/api/clients/:name` | Update rate/phone/parent_phone |
-| `DELETE` | `/api/clients/:name` | Delete client and all associated sessions and payments (transactional) |
+| `PUT` | `/api/clients/:id` | Update name/rate/phone/parent_phone; returns `409` on name collision |
+| `DELETE` | `/api/clients/:id` | Delete client and all associated sessions and payments (transactional) |
 
 ### Sessions
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/sessions` | All sessions; optional `?month=YYYY-MM`, `?year=YYYY`, `?client=name`. Triggers `autoCompleteSessions`. |
-| `GET` | `/api/sessions/:client/:date/:time` | Single session by composite key |
-| `POST` | `/api/sessions` | Create session; runs overlap check, returns `409` on conflict |
-| `PUT` | `/api/sessions/:client/:date/:time` | Update session; re-runs overlap check; guards against editing a future time to a past status |
-| `DELETE` | `/api/sessions/:client/:date/:time` | Delete session |
+| `GET` | `/api/sessions/:session_id` | Single session by integer ID |
+| `POST` | `/api/sessions` | Create session; `client_id` and `rate` required; runs overlap check, returns `409` on conflict |
+| `PUT` | `/api/sessions/:session_id` | Update session; re-runs overlap check excluding self; client is editable |
+| `DELETE` | `/api/sessions/:session_id` | Delete session |
 
 ### Payments
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/payments` | All payments; optional `?client=name&from=YYYY-MM-DD` |
-| `GET` | `/api/payments/owed` | Clients with positive balance, with earliest unpaid session and hours owed. Used by the Payments view top panel. |
+| `GET` | `/api/payments/owed` | Clients with positive balance, with earliest unpaid session and minutes owed. Used by the Payments view top panel. |
 | `GET` | `/api/payments/summary` | Per-client earned/paid/balance totals |
-| `GET` | `/api/payments/:client` | Payment history for one client |
-| `POST` | `/api/payments` | Log a payment |
-| `PUT` | `/api/payments/:client/:date` | Update an existing payment |
-| `DELETE` | `/api/payments/:client/:date` | Delete a payment |
+| `POST` | `/api/payments` | Log a payment; `client_id` required |
+| `PUT` | `/api/payments/:payment_id` | Update an existing payment; client and date are editable |
+| `DELETE` | `/api/payments/:payment_id` | Delete a payment |
 
 ### Static / SPA fallback
 
@@ -246,8 +244,8 @@ Key properties:
 ### Dark mode as the default
 The entire UI is dark mode by default with no light mode toggle. This was an explicit PRD requirement and is implemented entirely in custom CSS using dark background and light foreground colour values throughout. No CSS framework or `prefers-color-scheme` media query is involved — dark is the only theme.
 
-### Client name as primary key
-The `clients.name` column is the primary key across all three tables. This avoids a surrogate ID and keeps URLs and API payloads readable (`/api/sessions/Alice/2025-09-01/09:00`). The trade-off is that renaming a client is not supported (it would require cascading updates across all foreign keys). Acceptable at personal scale where names are stable.
+### Integer IDs with unique name constraint
+Each table uses a synthetic `INTEGER PRIMARY KEY`. Client names still carry a `UNIQUE` constraint — the business invariant that no two clients share a name is preserved. Cross-table foreign keys reference `clients.id`, which means renaming a client (via `PUT /api/clients/:id` with a new `name` in the body) no longer requires cascading updates across child tables. All single-resource client/session/payment endpoints are addressed by integer ID.
 
 ### Lazy session auto-completion
 Sessions never flip from `Scheduled` to `Completed` via a background cron job. Instead, `autoCompleteSessions()` runs on every read request (every `GET` to sessions, clients, or payments). It issues a single `UPDATE` against SQLite, setting all past `Scheduled` sessions to `Completed` based on Israel time. This is cheap, correct, and requires no scheduler infrastructure.
@@ -262,7 +260,7 @@ The server's `nowInIsrael()` function uses `Intl.DateTimeFormat` with `Asia/Jeru
 Israeli holidays and Shabbat candle-lighting times are stored in a static JSON file bundled with the frontend. This resolves the PRD open question about the holidays data source: no external API dependency, no network requests, works offline.
 
 ### Overlap detection in application code
-The `hasOverlap()` function in `sessions.js` checks for time conflicts across all non-cancelled sessions on a given date, regardless of which client they belong to. It converts `HH:MM` times and durations to minutes for arithmetic. This is enforced in the route handler rather than a DB constraint because it requires time arithmetic — comparing whether two intervals `(start, start+duration)` overlap — which a database unique index cannot express.
+The `hasOverlap()` function in `sessions.js` checks for time conflicts across all non-cancelled sessions on a given date, regardless of which client they belong to. It converts `HH:MM` times and durations (in minutes) to integer minute offsets for arithmetic. On edits, the check excludes the session being updated by its ID. This is enforced in the route handler rather than a DB constraint because it requires time arithmetic — comparing whether two intervals `(start, start+duration)` overlap — which a database unique index cannot express.
 
 ### Payments can go negative (pay ahead)
 The balance formula deliberately allows negative balances. Clients who pay before all sessions are completed will show a negative (credit) balance. The Payments view top panel only shows clients with `balance_owed > 0`, so pre-paid clients don't appear as owing anything.
@@ -286,7 +284,7 @@ In production, Express serves both the API and the compiled React frontend. Ther
 | **Cancelled session reasons** | Not implemented | Listed as "Nice to Have" in PRD §5.2. `Cancelled` status exists but no reason field. |
 | **Multi-user login (wife's access)** | Not implemented | Explicitly deferred to v2 in PRD §5.3 and §8. Single-password auth is the v1 design. |
 | **Create receipts / payment requests** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
-| **Per-session rate override history** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
+| **Per-session rate override history** | Partially implemented | Each session now stores `rate` at booking time (`sessions.rate`), so billing is accurate even after a client's default rate changes. A full audit history of rate changes is not implemented. |
 | **Monthly report with cancellation analysis** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
 | **Day View as overlay over current view** | Implemented as specified | PRD §6 described it as an "enlarged overlay/modal" — this is what was built. |
 | **Hosting** | Implemented (Railway) | PRD §8 left this as an open question; resolved in implementation. |
@@ -299,3 +297,6 @@ In production, Express serves both the API and the compiled React frontend. Ther
 - **Mobile UX improvements** — responsive adjustments for small screens, beyond the PRD's "web only" scope.
 - **`DB_PATH` env var** — makes the SQLite file location configurable, required for Railway deployment.
 - **`SIGTERM` handler** — graceful shutdown for container environments.
+- **Unified modals** — each entity (session, payment, client) uses a single modal component for both create and edit flows, replacing six separate New/Edit modal files.
+- **H:MM duration segment input** — custom keyboard-driven input for session duration, replacing separate hours/minutes fields.
+- **`migrate_railway.js`** — standalone migration script to upgrade an existing Railway SQLite database to the new integer-ID schema without data loss.
