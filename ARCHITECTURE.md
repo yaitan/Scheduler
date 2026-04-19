@@ -83,7 +83,8 @@ Scheduler/
     │   ├── auth.js              # POST /api/auth/verify
     │   ├── clients.js           # CRUD for clients + derived stats
     │   ├── sessions.js          # CRUD for sessions + overlap check
-    │   └── payments.js          # CRUD for payments + summary/owed endpoints
+    │   ├── payments.js          # CRUD for payments + summary/owed endpoints
+    │   └── backup.js            # GET /api/backup — streams DB file as binary download
     │
     └── db/
         ├── schema.sql           # CREATE TABLE IF NOT EXISTS — idempotent on startup
@@ -199,6 +200,12 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 | `POST` | `/api/payments` | Log a payment; `client_id` required |
 | `PUT` | `/api/payments/:payment_id` | Update an existing payment; client and date are editable |
 | `DELETE` | `/api/payments/:payment_id` | Delete a payment |
+
+### Backup
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/backup` | Streams the live SQLite database file as a binary download with a date-stamped filename (`scheduler-backup-YYYY-MM-DD.db`). Requires JWT. |
 
 ### Static / SPA fallback
 

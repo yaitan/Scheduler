@@ -9,9 +9,13 @@
  *
  * Navigation items are defined in the NAV_ITEMS constant below. Adding a new
  * top-level view requires only a new entry there — no JSX changes needed.
+ *
+ * API routes used:
+ *   GET  /api/backup  — Streams the SQLite database file as a binary download.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
+import { apiFetch } from '../utils/api';
 import '../styles/sidebar.css';
 
 /**
@@ -38,8 +42,57 @@ const NAV_ITEMS = [
  *                            overlay is rendered.
  *   onClose     {Function} — Called when the user clicks the close button or the
  *                            backdrop overlay, signalling the parent to set isOpen=false.
+ *
+ * States:
+ *   downloading  {boolean} — True while the GET /api/backup request is in-flight.
+ *                            Disables the button to prevent duplicate downloads.
  */
 function Sidebar({ activeView, onNavigate, isOpen, onClose }) {
+  const [downloading, setDownloading] = useState(false);
+
+  /**
+   * downloadBackup
+   *
+   * GET /api/backup
+   *
+   * Fetches the SQLite database file and triggers a browser file download.
+   * Creates a temporary object URL from the response blob, clicks a synthetic
+   * <a> element to trigger the Save dialog, then immediately revokes the URL
+   * to free memory.
+   */
+  async function downloadBackup() {
+    setDownloading(true);
+    try {
+      const res = await apiFetch('/api/backup');
+      if (!res.ok) {
+        alert('Backup failed — check the server logs.');
+        return;
+      }
+
+      const blob        = await res.blob();
+      const url         = URL.createObjectURL(blob);
+      const a           = document.createElement('a');
+
+      // Pull the server-provided filename from the Content-Disposition header
+      // (e.g. "scheduler-backup-2026-04-19.db") so the downloaded file is
+      // date-stamped without the client needing to know today's date.
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match       = disposition.match(/filename="([^"]+)"/);
+      a.download        = match ? match[1] : 'scheduler-backup.db';
+
+      a.href = url;
+      // The element must be in the DOM for Firefox to fire the download.
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Backup failed — network error.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <>
       {/* Backdrop overlay — only rendered when the sidebar is open. Clicking it
@@ -68,6 +121,17 @@ function Sidebar({ activeView, onNavigate, isOpen, onClose }) {
             </li>
           ))}
         </ul>
+
+        {/* Footer — pushed to the bottom of the flex column via margin-top: auto */}
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-backup-btn"
+            onClick={downloadBackup}
+            disabled={downloading}
+          >
+            {downloading ? 'Downloading…' : 'Download Backup'}
+          </button>
+        </div>
       </nav>
     </>
   );

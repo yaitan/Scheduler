@@ -152,7 +152,7 @@ export function fmtDuration(minutes) {
   const min = minutes % 60;
   if (min === 0) return `${h}h`;
   if (h === 0)   return `${min}m`;
-  return `${h}h${min}m`;
+  return `${h}h\u202F${min}m`; // \u202F is a narrow non-breaking space
 }
 
 /**

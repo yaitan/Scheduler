@@ -12,8 +12,9 @@
  *   4. requireAuth          — all /api/* routes below this point require a
  *      valid JWT.
  *   5. /api/clients, /api/sessions, /api/payments — protected API routes.
- *   6. express.static       — serves the compiled React app from client/build.
- *   7. Catch-all SPA route  — returns index.html for any non-API path so that
+ *   6. GET /api/backup      — streams the SQLite file as a binary download.
+ *   7. express.static       — serves the compiled React app from client/build.
+ *   8. Catch-all SPA route  — returns index.html for any non-API path so that
  *      React Router (client-side navigation) works on direct URL loads and
  *      browser refreshes.
  */
@@ -51,6 +52,7 @@ app.use('/api', requireAuth);
 app.use('/api/clients',  require('./routes/clients'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/backup',   require('./routes/backup'));
 
 // ── React client (production) ─────────────────────────────────────────────────
 

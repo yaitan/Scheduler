@@ -77,6 +77,10 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 
 - Single-password login secured by JWT. The token is stored client-side and sent with every API request.
 
+### Backup
+
+- **Download Backup** button in the sidebar downloads the live SQLite database file as a date-stamped `.db` file (e.g. `scheduler-backup-2026-04-19.db`). Protected by the same JWT auth as all other API routes.
+
 ---
 
 ## Tech Stack
@@ -106,7 +110,7 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 │       ├── styles/          # CSS files scoped per view and component
 │       └── utils/           # API wrapper, date helpers, static holiday data
 └── server/
-    ├── routes/              # Express routers: auth, clients, sessions, payments
+    ├── routes/              # Express routers: auth, clients, sessions, payments, backup
     ├── middleware/           # JWT auth guard applied to all protected routes
     └── db/                  # SQLite setup and schema
 ```

@@ -294,6 +294,43 @@ client/src/components/SessionModal.js — DurationInput component
 
 ==================
 
+Database backup download.
+
+
+CHANGES MADE
+============
+
+server/routes/backup.js (new file)
+- GET /api/backup: streams the SQLite database file (DB_PATH) to the caller as a
+  binary download with a date-stamped filename (scheduler-backup-YYYY-MM-DD.db)
+- Protected by the requireAuth middleware (mounted after the auth wall in index.js)
+- Returns 500 if DB_PATH env var is not set or the file cannot be read
+
+server/index.js
+- Mounted /api/backup route after /api/payments (behind requireAuth)
+- Updated file-header middleware/route order comment to include step 6 (backup)
+  and renumbered subsequent steps
+
+client/src/components/Sidebar.js
+- Added downloadBackup() async function: fetches GET /api/backup, converts the
+  response to a blob, creates a temporary object URL, and triggers a browser Save
+  dialog via a synthetic <a> click; reads the filename from Content-Disposition
+- Added `downloading` state (boolean) to disable the button during in-flight requests
+- Added "Download Backup" button in a sidebar-footer div (pushed to the bottom of
+  the flex column via margin-top: auto)
+- Added API routes section to file header; added useState and apiFetch imports;
+  added `downloading` state to component JSDoc
+
+client/src/styles/sidebar.css
+- Added .sidebar-footer, .sidebar-backup-btn, .sidebar-backup-btn:hover, and
+  .sidebar-backup-btn:disabled styles
+
+server/.env
+- Added DB_PATH=./db/scheduler.db (local development default)
+
+
+==================
+
 Code review pass — duplicated code, dead code, and misplaced functions.
 
 
