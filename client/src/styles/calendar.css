@@ -35,6 +35,7 @@
   color: var(--text-primary);
   min-width: 200px;
   text-align: center;
+  cursor: pointer;
 }
 
 .cal-nav-btn {

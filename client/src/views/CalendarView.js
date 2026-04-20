@@ -5,7 +5,7 @@
  * a summary bar, and drill-down to WeekView and DayView.
  *
  * Layout:
- *   - Header: previous/next month navigation.
+ *   - Header: previous/next month navigation (month opens YearlySummaryModal).
  *   - Summary bar: total amount owed (links to PaymentsView), monthly revenue
  *     (opens YearlySummaryModal), and total scheduled session time.
  *   - Day-of-week header row.
@@ -257,7 +257,7 @@ function CalendarView({ onNavigate }) {
         <div />
         <div className="calendar-header-nav">
           <button className="cal-nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
-          <h2 className="calendar-month-title">{MONTH_NAMES[month]} {year}</h2>
+          <h2 className="calendar-month-title" onClick={openYearlySummary}>{MONTH_NAMES[month]} {year}</h2>
           <button className="cal-nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
         </div>
         <div className="calendar-header-actions">

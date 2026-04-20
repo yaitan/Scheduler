@@ -36,9 +36,10 @@ import '../styles/datepicker-theme.css';
 /**
  * DurationInput
  *
- * A custom HH:MM duration field composed of two focusable <span> segments
- * (hours and minutes). Supports keyboard-only entry — no native <input type="time">
- * is used so that the field can enforce minutes-in-steps-of-1 without browser quirks.
+ * A custom HH:MM duration field composed of two <input> segments (hours and
+ * minutes). Supports both keyboard entry (desktop) and on-screen keyboard entry
+ * (mobile). inputMode="numeric" opens the numeric keypad on mobile; onKeyDown
+ * handles digit/navigation logic for desktop.
  *
  * The total duration is stored and communicated as a single integer (total minutes).
  *
@@ -75,6 +76,7 @@ function DurationInput({ value, onChange }) {
 
   /**
    * Handles keydown events for both the hours ('h') and minutes ('m') segments.
+   * Covers desktop keyboard navigation; mobile input is handled by handleMobileInput.
    *
    * Key behaviours:
    *   Digits      — hours: set directly then auto-advance to minutes.
@@ -142,6 +144,42 @@ function DurationInput({ value, onChange }) {
     }
   }
 
+  /**
+   * Handles onChange for mobile input. On desktop, handleKey calls e.preventDefault()
+   * for digit keys so this never fires there. On mobile, onKeyDown fires with
+   * key='Unidentified' and cannot be prevented, so onChange is the entry point.
+   *
+   * Extracts the last digit from the raw input value to apply the same single-digit
+   * (hours) or two-digit accumulation (minutes) logic as handleKey. Taking the last
+   * digit handles both mobile OS behaviours: "append" ("2" → user types 3 → "23")
+   * and "replace" (selection cleared → "3").
+   *
+   * @param {'h'|'m'} seg - Which segment received the change.
+   * @param {React.ChangeEvent<HTMLInputElement>} e
+   */
+  function handleMobileInput(seg, e) {
+    const rawDigits = e.target.value.replace(/\D/g, '');
+    if (!rawDigits) {
+      if (seg === 'h') setHours(0);
+      else { setMins(0); setBuf(''); }
+      return;
+    }
+    const newDigit = rawDigits[rawDigits.length - 1];
+
+    if (seg === 'h') {
+      setHours(parseInt(newDigit, 10));
+      setBuf('');
+      mRef.current?.focus();
+    } else {
+      const next = buf + newDigit;
+      const val  = parseInt(next, 10);
+      if (val > 59) return;
+      setMins(val);
+      if (next.length >= 2) setBuf('');
+      else setBuf(next);
+    }
+  }
+
   // While a segment is active and the user has typed digits, show the raw buffer so
   // they can see what they're entering before it's committed. Otherwise show the
   // current computed value, zero-padded for minutes.
@@ -150,29 +188,33 @@ function DurationInput({ value, onChange }) {
 
   return (
     <div className="duration-input form-input">
-      {/* Hours segment — focusable via tab, keyboard-driven */}
-      <span
+      {/* Hours segment — opens numeric keyboard on mobile via inputMode */}
+      <input
         ref={hRef}
-        tabIndex={0}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
         className={`duration-seg${active === 'h' ? ' duration-seg--active' : ''}`}
-        onFocus={() => { setActive('h'); setBuf(''); }}
+        value={hDisplay}
+        onFocus={e => { setActive('h'); setBuf(''); e.target.select(); }}
         onBlur={() => { setActive(null); setBuf(''); }}
         onKeyDown={e => handleKey('h', e)}
-      >
-        {hDisplay}
-      </span>
+        onChange={e => handleMobileInput('h', e)}
+      />
       <span className="duration-colon">:</span>
       {/* Minutes segment */}
-      <span
+      <input
         ref={mRef}
-        tabIndex={0}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
         className={`duration-seg${active === 'm' ? ' duration-seg--active' : ''}`}
-        onFocus={() => { setActive('m'); setBuf(''); }}
+        value={mDisplay}
+        onFocus={e => { setActive('m'); setBuf(''); e.target.select(); }}
         onBlur={() => { setActive(null); setBuf(''); }}
         onKeyDown={e => handleKey('m', e)}
-      >
-        {mDisplay}
-      </span>
+        onChange={e => handleMobileInput('m', e)}
+      />
     </div>
   );
 }

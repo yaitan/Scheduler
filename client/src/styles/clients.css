@@ -222,8 +222,6 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  cursor: default;
-  user-select: none;
 }
 
 .duration-seg {
@@ -233,11 +231,16 @@
   text-align: center;
   outline: none;
   color: var(--text-primary);
+  /* Reset default <input> chrome so it looks like the original span. */
+  border: none;
+  background: transparent;
+  font: inherit;
+  /* calc accounts for the 4px left + 4px right padding under border-box sizing. */
+  width: calc(2ch + 8px);
 }
 
 .duration-seg--active {
-  background: var(--accent-blue);
-  color: #fff;
+  background: transparent;
 }
 
 .duration-colon {
