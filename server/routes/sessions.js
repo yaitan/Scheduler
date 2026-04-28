@@ -92,9 +92,9 @@ function hasOverlap(date, time, duration, excludeId = null) {
  * Example response (200):
  *   [
  *     { "id": 10, "client_id": 1, "name": "Alice", "date": "2025-03-05",
- *       "time": "16:00", "duration": 60, "rate": 150, "status": "Completed" },
+ *       "time": "16:00", "duration": 60, "rate": 150, "status": "Completed", "location": "Zoom" },
  *     { "id": 11, "client_id": 2, "name": "Bob",   "date": "2025-03-07",
- *       "time": "17:00", "duration": 90, "rate": 120, "status": "Scheduled" }
+ *       "time": "17:00", "duration": 90, "rate": 120, "status": "Scheduled", "location": "" }
  *   ]
  */
 router.get('/', (req, res) => {
@@ -102,7 +102,7 @@ router.get('/', (req, res) => {
 
   const { month, year, client, client_id } = req.query;
   let sql = `
-    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status
+    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status, s.location
     FROM sessions s
     JOIN clients c ON c.id = s.client_id
     WHERE 1=1
@@ -143,7 +143,7 @@ router.get('/', (req, res) => {
  *
  * Example response (200):
  *   { "id": 10, "client_id": 1, "name": "Alice", "date": "2025-03-05",
- *     "time": "16:00", "duration": 60, "rate": 150, "status": "Completed" }
+ *     "time": "16:00", "duration": 60, "rate": 150, "status": "Completed", "location": "Zoom" }
  *
  * Errors:
  *   404  { "error": "Session not found" }
@@ -152,7 +152,7 @@ router.get('/:session_id', (req, res) => {
   autoCompleteSessions();
 
   const session = db.prepare(`
-    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status
+    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status, s.location
     FROM sessions s
     JOIN clients c ON c.id = s.client_id
     WHERE s.id = ?
@@ -176,14 +176,15 @@ router.get('/:session_id', (req, res) => {
  *   duration   {number}   — Duration in minutes. Required.
  *   rate       {number}   — Hourly rate in ₪ for this session. Required.
  *   status     {string}   — Initial status. Optional, defaults to 'Scheduled'.
+ *   location   {string}   — Session location. Optional, defaults to ''.
  *
  * Example request:
  *   POST /api/sessions
- *   { "client_id": 1, "date": "2025-04-10", "time": "16:00", "duration": 60, "rate": 150 }
+ *   { "client_id": 1, "date": "2025-04-10", "time": "16:00", "duration": 60, "rate": 150, "location": "Zoom" }
  *
  * Example response (201):
  *   { "id": 14, "client_id": 1, "name": "Alice", "date": "2025-04-10",
- *     "time": "16:00", "duration": 60, "rate": 150, "status": "Scheduled" }
+ *     "time": "16:00", "duration": 60, "rate": 150, "status": "Scheduled", "location": "Zoom" }
  *
  * Errors:
  *   400  { "error": "client_id, date, time, duration, and rate are required" }
@@ -191,7 +192,7 @@ router.get('/:session_id', (req, res) => {
  *   409  { "error": "Session overlaps with an existing session" }
  */
 router.post('/', (req, res) => {
-  const { client_id, date, time, duration, rate, status = 'Scheduled' } = req.body;
+  const { client_id, date, time, duration, rate, status = 'Scheduled', location = '' } = req.body;
   if (!client_id || !date || !time || duration == null || rate == null)
     return res.status(400).json({ error: 'client_id, date, time, duration, and rate are required' });
 
@@ -200,13 +201,13 @@ router.post('/', (req, res) => {
 
   try {
     const result = db.prepare(`
-      INSERT INTO sessions (client_id, date, time, duration, rate, status)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(client_id, date, time, duration, rate, status);
+      INSERT INTO sessions (client_id, date, time, duration, rate, status, location)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(client_id, date, time, duration, rate, status, location);
 
     // Re-fetch joined with client name so the response matches GET shape.
     const session = db.prepare(`
-      SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status
+      SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status, s.location
       FROM sessions s JOIN clients c ON c.id = s.client_id
       WHERE s.id = ?
     `).get(result.lastInsertRowid);
@@ -242,14 +243,15 @@ router.post('/', (req, res) => {
  *   duration   {number}   — Updated duration in minutes.
  *   rate       {number}   — Updated rate in ₪.
  *   status     {string}   — Updated status (used only if the session time is in the past).
+ *   location   {string}   — Updated session location.
  *
  * Example request:
  *   PUT /api/sessions/14
- *   { "time": "17:00", "duration": 90 }
+ *   { "time": "17:00", "duration": 90, "location": "Home" }
  *
  * Example response (200):
  *   { "id": 14, "client_id": 1, "name": "Alice", "date": "2025-04-10",
- *     "time": "17:00", "duration": 90, "rate": 150, "status": "Scheduled" }
+ *     "time": "17:00", "duration": 90, "rate": 150, "status": "Scheduled", "location": "Home" }
  *
  * Errors:
  *   404  { "error": "Session not found" }
@@ -257,7 +259,7 @@ router.post('/', (req, res) => {
  */
 router.put('/:session_id', (req, res) => {
   const { session_id } = req.params;
-  const { client_id, duration, rate, status, date: newDate, time: newTime } = req.body;
+  const { client_id, duration, rate, status, location, date: newDate, time: newTime } = req.body;
 
   const existing = db.prepare('SELECT * FROM sessions WHERE id = ?').get(session_id);
   if (!existing) return res.status(404).json({ error: 'Session not found' });
@@ -267,6 +269,7 @@ router.put('/:session_id', (req, res) => {
   const targetDate     = newDate    ?? existing.date;
   const targetTime     = newTime    ?? existing.time;
   const targetDuration = duration   ?? existing.duration;
+  const targetLocation = location   !== undefined ? location : existing.location;
 
   if (hasOverlap(targetDate, targetTime, targetDuration, Number(session_id)))
     return res.status(409).json({ error: 'Session overlaps with an existing session' });
@@ -277,12 +280,12 @@ router.put('/:session_id', (req, res) => {
   const resolvedStatus  = sessionDateTime > new Date() ? 'Scheduled' : (status ?? existing.status);
 
   db.prepare(`
-    UPDATE sessions SET client_id = ?, date = ?, time = ?, duration = ?, rate = ?, status = ?
+    UPDATE sessions SET client_id = ?, date = ?, time = ?, duration = ?, rate = ?, status = ?, location = ?
     WHERE id = ?
-  `).run(targetClientId, targetDate, targetTime, targetDuration, rate !== undefined ? rate : existing.rate, resolvedStatus, session_id);
+  `).run(targetClientId, targetDate, targetTime, targetDuration, rate !== undefined ? rate : existing.rate, resolvedStatus, targetLocation, session_id);
 
   const session = db.prepare(`
-    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status
+    SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status, s.location
     FROM sessions s JOIN clients c ON c.id = s.client_id
     WHERE s.id = ?
   `).get(session_id);

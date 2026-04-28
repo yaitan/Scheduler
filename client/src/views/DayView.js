@@ -230,7 +230,7 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
                   onClick={e => { e.stopPropagation(); setEditSession(s); }}
                 >
                   <span className="day-session-client">{s.name}</span>
-                  <span className="day-session-meta">{s.time} · {fmtDuration(s.duration)}</span>
+                  <span className="day-session-meta">{s.time} · {fmtDuration(s.duration)}{s.location ? ` · ${s.location}` : ''}</span>
                 </div>
               ))}
 

@@ -41,7 +41,7 @@ const router = Router();
  *   [
  *     {
  *       "id": 1, "name": "Alice", "rate": 150,
- *       "phone": "050-0000000", "parent_phone": null,
+ *       "phone": "050-0000000", "parent_phone": null, "location": "Zoom",
  *       "total_minutes": 180, "scheduled_minutes": 60,
  *       "total_revenue": 450, "balance_owed": 150,
  *       "last_session_date": "2025-03-10"
@@ -61,6 +61,7 @@ router.get('/', (req, res) => {
       c.rate,
       c.phone,
       c.parent_phone,
+      c.location,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration ELSE 0 END), 0) AS total_minutes,
       COALESCE(SUM(CASE WHEN s.status = 'Scheduled' THEN s.duration ELSE 0 END), 0) AS scheduled_minutes,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration * s.rate / 60.0 ELSE 0 END), 0) AS total_revenue,
@@ -92,7 +93,7 @@ router.get('/', (req, res) => {
  * Example response (200):
  *   {
  *     "id": 1, "name": "Alice", "rate": 150,
- *     "phone": "050-0000000", "parent_phone": null,
+ *     "phone": "050-0000000", "parent_phone": null, "location": "Zoom",
  *     "total_sessions": 6, "scheduled_sessions": 1,
  *     "total_minutes": 360, "balance_owed": 150,
  *     "upcoming_sessions": [
@@ -113,6 +114,7 @@ router.get('/:client_id', (req, res) => {
       c.rate,
       c.phone,
       c.parent_phone,
+      c.location,
       COUNT(DISTINCT CASE WHEN s.status = 'Completed' THEN s.id END) AS total_sessions,
       COUNT(DISTINCT CASE WHEN s.status = 'Scheduled' THEN s.id END) AS scheduled_sessions,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration ELSE 0 END), 0) AS total_minutes,
@@ -148,29 +150,30 @@ router.get('/:client_id', (req, res) => {
  *   rate          {number}       — Hourly rate in ₪. Required.
  *   phone         {string|null}  — Client's phone number. Optional.
  *   parent_phone  {string|null}  — Parent's phone number. Optional.
+ *   location      {string}       — Default session location (e.g. "Zoom"). Optional, defaults to ''.
  *
  * Example request:
  *   POST /api/clients
- *   { "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null }
+ *   { "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null, "location": "Zoom" }
  *
  * Example response (201):
- *   { "id": 1, "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null }
+ *   { "id": 1, "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null, "location": "Zoom" }
  *
  * Errors:
  *   400  { "error": "name and rate are required" }
  *   409  { "error": "Client already exists" }  — Duplicate name.
  */
 router.post('/', (req, res) => {
-  const { name, rate, phone, parent_phone } = req.body;
+  const { name, rate, phone, parent_phone, location = '' } = req.body;
   if (!name || rate == null) return res.status(400).json({ error: 'name and rate are required' });
 
   try {
     const result = db.prepare(`
-      INSERT INTO clients (name, rate, phone, parent_phone)
-      VALUES (?, ?, ?, ?)
-    `).run(name, rate, phone ?? null, parent_phone ?? null);
+      INSERT INTO clients (name, rate, phone, parent_phone, location)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(name, rate, phone ?? null, parent_phone ?? null, location);
 
-    res.status(201).json({ id: result.lastInsertRowid, name, rate, phone, parent_phone });
+    res.status(201).json({ id: result.lastInsertRowid, name, rate, phone, parent_phone, location });
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Client already exists' });
     throw err;
@@ -191,30 +194,31 @@ router.post('/', (req, res) => {
  *   rate          {number}       — Updated hourly rate. Required.
  *   phone         {string|null}  — Updated phone. Pass null to clear.
  *   parent_phone  {string|null}  — Updated parent phone. Pass null to clear.
+ *   location      {string}       — Updated default session location. Optional, defaults to ''.
  *
  * Example request:
  *   PUT /api/clients/1
- *   { "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null }
+ *   { "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null, "location": "Home" }
  *
  * Example response (200):
- *   { "id": 1, "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null }
+ *   { "id": 1, "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null, "location": "Home" }
  *
  * Errors:
  *   404  { "error": "Client not found" }
  *   409  { "error": "A client with that name already exists" }  — Duplicate name.
  */
 router.put('/:client_id', (req, res) => {
-  const { name, rate, phone, parent_phone } = req.body;
+  const { name, rate, phone, parent_phone, location = '' } = req.body;
 
   try {
     const result = db.prepare(`
-      UPDATE clients SET name = ?, rate = ?, phone = ?, parent_phone = ?
+      UPDATE clients SET name = ?, rate = ?, phone = ?, parent_phone = ?, location = ?
       WHERE id = ?
-    `).run(name, rate, phone ?? null, parent_phone ?? null, req.params.client_id);
+    `).run(name, rate, phone ?? null, parent_phone ?? null, location, req.params.client_id);
 
     if (result.changes === 0) return res.status(404).json({ error: 'Client not found' });
 
-    const updated = db.prepare('SELECT id, name, rate, phone, parent_phone FROM clients WHERE id = ?').get(req.params.client_id);
+    const updated = db.prepare('SELECT id, name, rate, phone, parent_phone, location FROM clients WHERE id = ?').get(req.params.client_id);
     res.json(updated);
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'A client with that name already exists' });

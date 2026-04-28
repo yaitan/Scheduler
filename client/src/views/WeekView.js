@@ -277,7 +277,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                     >
                       <span className="week-session-name">{s.name}</span>
                       {/* \u00A0 is a non-breaking space used as a small visual indent */}
-                      <span className="week-session-meta">{'\u00A0'} {s.time} · {fmtDuration(s.duration)}</span>
+                      <span className="week-session-meta">{'\u00A0'} {s.time} · {fmtDuration(s.duration)}{s.location ? ` · ${s.location}` : ''}</span>
                     </div>
                   ))}
 

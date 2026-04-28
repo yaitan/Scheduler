@@ -5,7 +5,8 @@
  *
  * Used in two modes:
  *   - New session: opened from CalendarView/DayView with an optional pre-filled
- *     date and time. The client dropdown auto-fills the rate from the client record.
+ *     date and time. The client dropdown auto-fills the rate and location from the
+ *     client record.
  *   - Edit session: opened from an existing session card, pre-populated with that
  *     session's data. Includes a Delete button that leads to a confirmation step.
  *
@@ -30,6 +31,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
 import { apiFetch } from '../utils/api';
 import { nowInIsrael, toDateStr } from '../utils/dateUtils';
+import LocationCombobox from './LocationCombobox';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import '../styles/datepicker-theme.css';
 
@@ -241,6 +243,9 @@ function DurationInput({ value, onChange }) {
  *   time          {string}       - Session start time in HH:MM format.
  *   duration      {number}       - Session length in total minutes.
  *   rate          {string}       - Hourly rate as a string (kept as string to match input value).
+ *   location      {string}       - Session location. Pre-filled from the selected client's location
+ *                                  when creating a new session; shows the session's stored location
+ *                                  when editing.
  *   error         {string}       - Hard error message shown in red below the form.
  *   submitting    {boolean}      - True while an API request is in-flight; disables buttons.
  *   warnings      {string[]|null}- Non-blocking warnings (e.g. past date, late hour). When set,
@@ -266,6 +271,7 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
   const [time, setTime]         = useState(isEdit ? session.time : (initialTime || ''));
   const [duration, setDuration] = useState(isEdit ? session.duration : 60);
   const [rate, setRate]         = useState(isEdit ? String(session.rate) : '');
+  const [location, setLocation] = useState(isEdit ? (session.location ?? '') : '');
   const [error, setError]       = useState('');
   const [submitting, setSubmitting]       = useState(false);
   const [warnings, setWarnings]           = useState(null);
@@ -293,6 +299,7 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
     setClientId(id);
     const client = clients.find(c => c.id === parseInt(id));
     setRate(client ? String(client.rate) : '');
+    setLocation(client ? (client.location ?? '') : '');
   }
 
   /**
@@ -300,7 +307,9 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
    * user to confirm before proceeding.
    *
    * Current warnings:
-   *   - Date is before today (scheduling in the past).
+   *   - Date is before today (scheduling in the past). In edit mode this warning
+   *     is suppressed when neither the date nor the time was changed, since the
+   *     session was already saved in the past intentionally.
    *   - Time is between 11pm and 7am (unusual working hours).
    *
    * @returns {string[]} Array of warning message strings (empty if none).
@@ -314,7 +323,12 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
       today.setHours(0, 0, 0, 0);
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
-      if (d < today) w.push('The selected date is in the past.');
+      if (d < today) {
+        // Skip the warning in edit mode when neither date nor time was touched.
+        const dateChanged = !isEdit || toDateStr(date) !== session.date;
+        const timeChanged = !isEdit || time !== session.time;
+        if (dateChanged || timeChanged) w.push('The selected date is in the past.');
+      }
     }
 
     if (time) {
@@ -351,6 +365,7 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
             time,
             duration,
             rate:      parseFloat(rate),
+            location,
           }),
         }
       );
@@ -504,6 +519,11 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
               Duration <span className="form-required">*</span>
             </label>
             <DurationInput value={duration} onChange={setDuration} />
+          </div>
+          
+          <div className="form-field">
+            <label className="form-label">Location</label>
+            <LocationCombobox value={location} onChange={setLocation} />
           </div>
 
           <div className="form-field">

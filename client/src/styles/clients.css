@@ -378,3 +378,35 @@
   color: var(--text-secondary);
   font-size: 14px;
 }
+
+/* ── LocationCombobox ─────────────────────────────────────────── */
+
+.combobox-wrapper {
+  position: relative;
+}
+
+.combobox-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  z-index: 200;
+  overflow: hidden;
+}
+
+.combobox-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.combobox-option:hover {
+  background: var(--bg-surface);
+}

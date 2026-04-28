@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS clients (
   name         TEXT NOT NULL UNIQUE,
   rate         REAL NOT NULL,
   phone        TEXT,
-  parent_phone TEXT
+  parent_phone TEXT,
+  location     TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   rate        REAL NOT NULL,    -- rate at time of session (duration * rate = session cost)
   status      TEXT NOT NULL DEFAULT 'Scheduled'
                 CHECK(status IN ('Scheduled', 'Completed', 'Cancelled')),
+  location    TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 

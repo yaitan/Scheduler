@@ -15,6 +15,7 @@
  *   - Name and Rate are required. Rate must be a positive whole number.
  *   - Duplicate name detection is handled server-side (409 response).
  *   - Phone fields are optional; empty strings are sent as null.
+ *   - Location is optional; empty string is valid and sent as-is.
  *
  * API routes used:
  *   POST    /api/clients         — Create a new client (new-client mode).
@@ -25,6 +26,7 @@
 import React, { useState } from 'react';
 import '../styles/clients.css';
 import { apiFetch } from '../utils/api';
+import LocationCombobox from './LocationCombobox';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 /**
@@ -52,8 +54,8 @@ function validateRateField(rate) {
  *   onDeleted  {Function}    — Called after a successful delete.
  *
  * States:
- *   form          {object}  — Controlled form values for all four fields:
- *                               name, rate, phone, parent_phone.
+ *   form          {object}  — Controlled form values for all five fields:
+ *                               name, rate, phone, parent_phone, location.
  *                             Rate is stored as a string to match the input value
  *                             type; it is converted to a Number before sending to the API.
  *   errors        {object}  — Per-field client-side validation error messages.
@@ -74,6 +76,7 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
     rate:         client?.rate != null ? String(client.rate) : '',
     phone:        client?.phone        ?? '',
     parent_phone: client?.parent_phone ?? '',
+    location:     client?.location     ?? '',
   });
   const [errors, setErrors]         = useState({});
   const [apiError, setApiError]     = useState('');
@@ -138,6 +141,7 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
             rate:         Number(form.rate),
             phone:        form.phone.trim()        || null,
             parent_phone: form.parent_phone.trim() || null,
+            location:     form.location.trim(),
           }),
         }
       );
@@ -233,6 +237,11 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
               onChange={e => set('rate', e.target.value)}
             />
             {errors.rate && <span className="form-error">{errors.rate}</span>}
+          </div>
+
+          <div className="form-field">
+            <label className="form-label">Location</label>
+            <LocationCombobox value={form.location} onChange={v => set('location', v)} />
           </div>
 
           {/* Phone fields are optional — empty values are sent as null to the API */}

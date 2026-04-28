@@ -23,15 +23,9 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/clients.css';
 import { apiFetch } from '../utils/api';
 import { toDateStr } from '../utils/dateUtils';
+import { PAYMENT_METHODS } from '../utils/modalConstants';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import '../styles/datepicker-theme.css';
-
-/**
- * Allowed payment methods, displayed in the Method dropdown in this order.
- * To add a new method, append it here — no JSX changes needed.
- * NOTE: Keep in sync with VALID_METHODS in server/routes/payments.js.
- */
-const METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
 
 /**
  * PaymentModal
@@ -53,7 +47,7 @@ const METHODS = ['PayBox', 'Bit', 'Transfer', 'Cash', 'Other'];
  *   clientId       {string}  — The selected client's ID as a string (matches <select> value).
  *   date           {Date}    — The selected payment date. Defaults to today for new payments.
  *   amount         {string}  — Payment amount as a string (kept as string to match input value).
- *   method         {string}  — Selected payment method from the METHODS list, or '' if unset.
+ *   method         {string}  — Selected payment method from PAYMENT_METHODS, or '' if unset.
  *   receiptNumber  {string}  — Optional receipt or reference number. Sent as null if empty.
  *   error          {string}  — Error message shown below the form on API or network failure.
  *   submitting     {boolean} — True while an API request is in-flight; disables buttons.
@@ -253,7 +247,7 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
             />
           </div>
 
-          {/* Method dropdown — options driven by the METHODS constant above */}
+          {/* Method dropdown — options driven by PAYMENT_METHODS in modalConstants */}
           <div className="form-field">
             <label className="form-label">
               Method <span className="form-required">*</span>
@@ -265,7 +259,7 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
               required
             >
               <option value="" />
-              {METHODS.map(m => (
+              {PAYMENT_METHODS.map(m => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
