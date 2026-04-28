@@ -30,6 +30,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import SessionModal from '../components/SessionModal';
+import PaymentModal from '../components/PaymentModal';
 import { MONTH_NAMES, DOW_FULL, toDateStr, nowInIsrael, fmtDuration, timeToOffset } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName, getAllDayHolidays, getTimedHolidays } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
@@ -68,11 +69,15 @@ const HOUR_PX    = 48; // Pixel height of one hour row. Also used by timeToOffse
  *                               this session object.
  *   refreshKey  {number}      — Incrementing counter that triggers a re-fetch when
  *                               changed. Incremented after any modal save or delete.
+ *   paySession  {object|null} — When non-null, PaymentModal opens pre-filled for a
+ *                               specific session. Carries { clientId, amount } where
+ *                               amount = Math.round(duration * rate / 60).
  */
 function DayView({ date, onClose, onNavigate, onSessionCreated }) {
   const [sessions, setSessions]       = useState([]);
   const [newSession, setNewSession]   = useState(null);  // null | { date, time }
   const [editSession, setEditSession] = useState(null);  // null | session object
+  const [paySession, setPaySession]   = useState(null);  // null | { clientId, amount }
   const [refreshKey, setRefreshKey]   = useState(0);
   const bodyRef = useRef(null);
 
@@ -123,6 +128,7 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
 
   // Projected income = sum of (duration in hours × rate) for all sessions today.
   const projectedIncome = sessions.reduce((sum, s) => sum + s.duration * s.rate / 60, 0);
+  const totalMinutes    = sessions.reduce((sum, s) => sum + s.duration, 0);
 
   // "Now" line — only shown when viewing today, and only if the current time
   // falls within the visible grid range.
@@ -147,7 +153,11 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
               <span key={i} className="day-view-holiday">{getHebrewName(ev.name)}</span>
             ))}
             {sessions.length > 0 && (
-              <span className="day-view-income">₪{Math.round(projectedIncome).toLocaleString()}</span>
+              <div className="day-view-summary">
+                <span className="day-view-income">₪{Math.round(projectedIncome).toLocaleString()}</span>
+                <div className="day-view-summary-divider" />
+                <span className="day-view-hours">{fmtDuration(totalMinutes)}</span>
+              </div>
             )}
           </div>
           <button className="cal-nav-btn" onClick={nextDay} aria-label="Next day">›</button>
@@ -231,6 +241,20 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
                 >
                   <span className="day-session-client">{s.name}</span>
                   <span className="day-session-meta">{s.time} · {fmtDuration(s.duration)}{s.location ? ` · ${s.location}` : ''}</span>
+                  {/* Pay button — hidden on cancelled sessions since there's nothing to collect */}
+                  {s.status.toLowerCase() !== 'cancelled' && (
+                    <button
+                      className="day-session-pay-btn"
+                      onClick={e => {
+                        e.stopPropagation(); // prevent opening the edit modal
+                        setPaySession({ clientId: s.client_id, amount: Math.round(s.duration * s.rate / 60) });
+                      }}
+                      title={`Log payment · ₪${Math.round(s.duration * s.rate / 60)}`}
+                      aria-label={`Log payment for ${s.name}`}
+                    >
+                      ₪
+                    </button>
+                  )}
                 </div>
               ))}
 
@@ -257,6 +281,19 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
           initialTime={newSession.time}
           onClose={() => setNewSession(null)}
           onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* Payment modal — opened from a session block's ₪ button, pre-filled with
+          that session's client and computed price (duration * rate / 60). */}
+      {paySession !== null && (
+        <PaymentModal
+          payment={null}
+          initialClientId={paySession.clientId}
+          initialAmount={paySession.amount}
+          onClose={() => setPaySession(null)}
+          onSaved={() => setPaySession(null)}
+          onDeleted={() => setPaySession(null)}
         />
       )}
     </div>,

@@ -248,7 +248,7 @@
   left: 3px;
   right: 3px;
   border-radius: 3px;
-  padding: 0 5px;
+  padding: 0 37px 0 5px; /* right padding reserves space for the 32px pay button */
   overflow: hidden;
   cursor: pointer;
   z-index: 1;
@@ -289,11 +289,14 @@
 }
 
 .week-session-name {
+  flex: 1;
+  min-width: 40px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .week-session-meta {
@@ -301,4 +304,55 @@
   color: var(--text-secondary);
   font-weight: 400;
   flex-shrink: 0;
+  /*overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;*/
+}
+
+/* ₪ pay button — 32×32 square (= one hour row height in week view) anchored to
+   the top-right of the session block. Clipped naturally by overflow:hidden. */
+.week-session-pay-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-left-width: 1px;
+  border-left-style: solid;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.week-session--scheduled .week-session-pay-btn {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #32557a;
+  color: var(--accent-blue);
+}
+
+.week-session--scheduled .week-session-pay-btn:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.week-session--completed .week-session-pay-btn {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #315d32;
+  color: var(--accent-green);
+}
+
+.week-session--completed .week-session-pay-btn:hover {
+  background: rgba(34, 197, 94, 0.28);
+}
+
+.week-session--cancelled .week-session-pay-btn {
+  background: rgba(85, 85, 85, 0.15);
+  border-color: #313131;
+  color: #555;
 }

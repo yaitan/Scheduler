@@ -27,6 +27,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DayView from './DayView';
 import SessionModal from '../components/SessionModal';
+import PaymentModal from '../components/PaymentModal';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, nowInIsrael, fmtDuration, timeToOffset } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName, getAllDayHolidays, getTimedHolidays } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
@@ -96,6 +97,9 @@ function weekLabel(days) {
  *                                this session object.
  *   refreshKey   {number}      — Incrementing counter that triggers a re-fetch when
  *                                changed. Incremented after any modal save or delete.
+ *   paySession   {object|null} — When non-null, PaymentModal opens pre-filled for a
+ *                                specific session. Carries { clientId, amount } where
+ *                                amount = Math.round(duration * rate / 60).
  */
 function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
   const [weekStart, setWeekStart]     = useState(initialWeekStart);
@@ -103,6 +107,7 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [newSession, setNewSession]   = useState(null);  // null | { date, time }
   const [editSession, setEditSession] = useState(null);  // null | session object
+  const [paySession, setPaySession]   = useState(null);  // null | { clientId, amount }
   const [refreshKey, setRefreshKey]   = useState(0);
   const scrollRef = useRef(null);
 
@@ -275,6 +280,17 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                       }}
                       onClick={e => { e.stopPropagation(); setEditSession(s); }}
                     >
+                      <button
+                        className="week-session-pay-btn"
+                        onClick={e => {
+                          e.stopPropagation(); // prevent opening the edit modal
+                          setPaySession({ clientId: s.client_id, amount: Math.round(s.duration * s.rate / 60) });
+                        }}
+                        title={`Log payment · ₪${Math.round(s.duration * s.rate / 60)}`}
+                        aria-label={`Log payment for ${s.name}`}
+                      >
+                        ₪
+                      </button>
                       <span className="week-session-name">{s.name}</span>
                       {/* \u00A0 is a non-breaking space used as a small visual indent */}
                       <span className="week-session-meta">{'\u00A0'} {s.time} · {fmtDuration(s.duration)}{s.location ? ` · ${s.location}` : ''}</span>
@@ -316,6 +332,19 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
           initialTime={newSession.time}
           onClose={() => setNewSession(null)}
           onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* Payment modal — opened from a session block's ₪ button, pre-filled with
+          that session's client and computed price (duration * rate / 60). */}
+      {paySession !== null && (
+        <PaymentModal
+          payment={null}
+          initialClientId={paySession.clientId}
+          initialAmount={paySession.amount}
+          onClose={() => setPaySession(null)}
+          onSaved={() => setPaySession(null)}
+          onDeleted={() => setPaySession(null)}
         />
       )}
 

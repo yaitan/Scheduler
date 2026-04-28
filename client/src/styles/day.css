@@ -53,11 +53,34 @@
   text-align: center;
 }
 
+.day-view-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.day-view-summary-divider {
+  width: 2px;
+  height: 17px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 .day-view-income {
+  flex: 1;
   font-size: 15px;
   font-weight: 600;
   color: #22c55e;
-  text-align: center;
+  text-align: right;
+}
+
+.day-view-hours {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
 }
 
 .day-new-session-btn {
@@ -184,7 +207,7 @@
   left: 4px;
   right: 4px;
   border-radius: 4px;
-  padding: 4px 8px;
+  padding: 4px 56px 4px 8px; /* right padding reserves space for the 48px pay button */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -242,4 +265,47 @@
   font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+/* ₪ pay button — 48×48 square (= one hour row height) anchored to the top-right
+   of the session block. Clipped naturally by overflow:hidden on the parent.
+   Color (background, borders, text) is set per status class below. */
+.day-session-pay-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-left-width: 1px;
+  border-left-style: solid;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.day-session--scheduled .day-session-pay-btn {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #32557a;
+  color: var(--accent-blue);
+}
+
+.day-session--scheduled .day-session-pay-btn:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.day-session--completed .day-session-pay-btn {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #315d32;
+  color: var(--accent-green);
+}
+
+.day-session--completed .day-session-pay-btn:hover {
+  background: rgba(34, 197, 94, 0.28);
 }
