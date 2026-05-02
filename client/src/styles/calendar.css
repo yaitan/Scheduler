@@ -325,6 +325,35 @@
   text-decoration: line-through;
 }
 
+/* ── Calendar footer ────────────────────────────────────────── */
+
+.calendar-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.calendar-backup-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.calendar-backup-btn:hover:not(:disabled) {
+  background: var(--bg-surface);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.calendar-backup-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ── Event pills (yellow/amber) ─────────────────────────────── */
 
 .event-pill {

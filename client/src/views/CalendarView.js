@@ -28,6 +28,9 @@
  *                                        the "Total Owed" figure in the summary bar.
  *   GET  /api/sessions?year=YYYY       — All sessions for the year, fetched on demand
  *                                        when the user opens the yearly summary.
+ *   GET  /api/backup                   — Streams the SQLite database as a binary download.
+ *                                        Triggered by the "Download Backup" button below
+ *                                        the calendar grid.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -108,6 +111,8 @@ function buildCalendarWeeks(year, month) {
  *                                     the summary bar.
  *   loading           {boolean}     — True while the parallel month fetch is running.
  *                                     The calendar grid is hidden during loading.
+ *   downloading       {boolean}     — True while the GET /api/backup request is in-flight.
+ *                                     Disables the Download Backup button during that time.
  *   subView           {string|null} — Controls which sub-view is active:
  *                                     null='month grid', 'week'=WeekView, 'day'=DayView.
  *   selectedWeekStart {Date|null}   — The Sunday passed to WeekView when subView='week'.
@@ -129,6 +134,7 @@ function CalendarView({ onNavigate }) {
   const [events, setEvents]         = useState([]);
   const [totalOwed, setTotalOwed]   = useState(0);
   const [loading, setLoading]       = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [subView, setSubView]       = useState(null); // null | 'week' | 'day'
   const [selectedWeekStart, setSelectedWeekStart] = useState(null);
   const [selectedDay, setSelectedDay]             = useState(null);
@@ -227,6 +233,43 @@ function CalendarView({ onNavigate }) {
       setYearlyData(data);
       setYearlySummaryOpen(true);
     });
+  }
+
+  /**
+   * GET /api/backup
+   *
+   * Fetches the SQLite database file and triggers a browser file download.
+   * Creates a temporary object URL from the response blob, clicks a synthetic
+   * <a> element to trigger the Save dialog, then immediately revokes the URL
+   * to free memory.
+   */
+  async function downloadBackup() {
+    setDownloading(true);
+    try {
+      const res = await apiFetch('/api/backup');
+      if (!res.ok) {
+        alert('Backup failed — check the server logs.');
+        return;
+      }
+      const blob        = await res.blob();
+      const url         = URL.createObjectURL(blob);
+      const a           = document.createElement('a');
+      // Pull the server-provided filename from the Content-Disposition header
+      // (e.g. "scheduler-backup-2026-04-19.db") so the file is date-stamped.
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match       = disposition.match(/filename="([^"]+)"/);
+      a.download        = match ? match[1] : 'scheduler-backup.db';
+      a.href            = url;
+      // The element must be in the DOM for Firefox to fire the download.
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Backup failed — network error.');
+    } finally {
+      setDownloading(false);
+    }
   }
 
   /**
@@ -386,6 +429,17 @@ function CalendarView({ onNavigate }) {
           ))}
         </div>
       )}
+
+      {/* Backup button — below the grid, right-aligned */}
+      <div className="calendar-footer">
+        <button
+          className="calendar-backup-btn"
+          onClick={downloadBackup}
+          disabled={downloading}
+        >
+          {downloading ? 'Downloading…' : 'Download Backup'}
+        </button>
+      </div>
 
       {/* DayView — rendered as a portal overlay on top of the month grid */}
       {subView === 'day' && selectedDay && (

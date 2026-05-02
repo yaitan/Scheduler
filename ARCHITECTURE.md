@@ -34,7 +34,7 @@ Scheduler/
 ├── client/                      # React frontend (Create React App)
 │   ├── package.json
 │   └── src/
-│       ├── App.js               # Root: auth gate, view router, sidebar, header
+│       ├── App.js               # Root: auth gate, view router, persistent topbar nav
 │       ├── index.js
 │       │
 │       ├── views/               # Full-page view components
@@ -48,11 +48,12 @@ Scheduler/
 │       │   ├── SessionModal.js       # Unified new + edit session modal
 │       │   ├── PaymentModal.js       # Unified new + edit payment modal
 │       │   ├── ClientModal.js        # Unified new + edit client modal
+│       │   ├── EventModal.js         # Unified new + edit event modal
+│       │   ├── DurationInput.js      # Shared H:MM segment input (Session/EventModal)
 │       │   ├── LocationCombobox.js   # Shared location combobox (Session/ClientModal)
 │       │   ├── ConfirmDeleteModal.js # Reusable delete-confirmation overlay
 │       │   ├── YearlySummaryModal.js
-│       │   ├── LoginScreen.js
-│       │   └── Sidebar.js
+│       │   └── LoginScreen.js
 │       │
 │       ├── styles/              # CSS scoped per view/component
 │       │   ├── global.css
@@ -61,7 +62,6 @@ Scheduler/
 │       │   ├── day.css
 │       │   ├── clients.css
 │       │   ├── payments.css
-│       │   ├── sidebar.css
 │       │   ├── login.css
 │       │   ├── datepicker-theme.css
 │       │   └── yearly-summary.css
@@ -86,6 +86,7 @@ Scheduler/
     │   ├── clients.js           # CRUD for clients + derived stats
     │   ├── sessions.js          # CRUD for sessions + overlap check
     │   ├── payments.js          # CRUD for payments + summary/owed endpoints
+    │   ├── events.js            # CRUD for calendar events; unique constraint on (date, time)
     │   └── backup.js            # GET /api/backup — streams DB file as binary download
     │
     └── db/
@@ -164,6 +165,28 @@ A negative balance means the client has paid ahead.
 
 ---
 
+### `events`
+
+```sql
+CREATE TABLE IF NOT EXISTS events (
+  id       INTEGER PRIMARY KEY,
+  name     TEXT NOT NULL,
+  date     TEXT NOT NULL,    -- ISO 8601: YYYY-MM-DD
+  time     TEXT,             -- HH:MM (24-hour); NULL for all-day events
+  duration INTEGER,          -- minutes; NULL if unspecified
+  location TEXT NOT NULL DEFAULT ''
+);
+-- At most one timed event per date+time slot:
+CREATE UNIQUE INDEX IF NOT EXISTS events_timed_unique  ON events (date, time) WHERE time IS NOT NULL;
+-- At most one all-day event per date (SQLite treats NULL as distinct, so this
+-- prevents duplicate all-day entries while allowing multiple timed events):
+CREATE UNIQUE INDEX IF NOT EXISTS events_allday_unique ON events (date)       WHERE time IS NULL;
+```
+
+Events are display-only — they carry no financial data and are not checked for overlap against sessions. The two partial unique indexes enforce separate uniqueness rules for timed and all-day events.
+
+---
+
 ## 4. API Routes
 
 All routes except `POST /api/auth/verify` and `GET /api/health` require a valid JWT in the `Authorization: Bearer <token>` header.
@@ -204,6 +227,16 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 | `POST` | `/api/payments` | Log a payment; `client_id` required |
 | `PUT` | `/api/payments/:payment_id` | Update an existing payment; client and date are editable |
 | `DELETE` | `/api/payments/:payment_id` | Delete a payment |
+
+### Events
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/events` | All events; optional `?month=YYYY-MM` or `?date=YYYY-MM-DD` filter |
+| `GET` | `/api/events/:id` | Single event by integer ID |
+| `POST` | `/api/events` | Create event; `name` and `date` required; returns `409` on unique-constraint violation |
+| `PUT` | `/api/events/:id` | Update event; returns `409` on unique-constraint violation |
+| `DELETE` | `/api/events/:id` | Delete event |
 
 ### Backup
 
@@ -291,7 +324,7 @@ In production, Express serves both the API and the compiled React frontend. Ther
 | PRD Item | Status | Notes |
 |---|---|---|
 | **Recurring sessions** | Not implemented | Listed as "Nice to Have" in PRD §5.2. No auto-generation of future sessions exists. |
-| **Tutoring-related events** (test days, year start/end) | Not implemented | Listed as "Nice to Have" in PRD §5.2. Can technically be inserted with a client with a rate of zero - but this would affect the total hours summary |
+| **Tutoring-related events** (test days, year start/end) | Implemented | Full event CRUD added: `events` table, `/api/events` route, `EventModal` UI. Events appear as amber pills in all three calendar views (timed events on the time grid, all-day events as header pills). |
 | **Cancelled session reasons** | Not implemented | Listed as "Nice to Have" in PRD §5.2. `Cancelled` status exists but no reason field. |
 | **Multi-user login (wife's access)** | Not implemented | Explicitly deferred to v2 in PRD §5.3 and §8. Single-password auth is the v1 design. |
 | **Create receipts / payment requests** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
@@ -313,3 +346,8 @@ In production, Express serves both the API and the compiled React frontend. Ther
 - **`migrate_railway.js`** — standalone migration script to upgrade an existing Railway SQLite database to the new integer-ID schema without data loss.
 - **`migrate_location.js`** — standalone migration script to add the `location` column to `clients` and `sessions` with an empty-string default for all existing rows. Idempotent.
 - **Location field** — both clients and sessions now store a `location` string (e.g. "Zoom", "Home"). The session form defaults the field to the client's location and can be overridden per session. A custom `LocationCombobox` component shows preset options on focus while still allowing free text.
+- **Persistent topbar navigation** — the hamburger/sidebar pattern was replaced with three always-visible nav buttons (Calendar, Clients, Payments) in a fixed header bar. The active view is indicated by an accent-blue underline.
+- **Quick-log payment buttons** — every session block in Week and Day views has a ₪ button that opens the payment form pre-filled with the client and the calculated session cost (`duration × rate / 60`, rounded). Reduces payment logging to a single click from the calendar.
+- **Day view summary row** — the Day view header shows projected income and total scheduled hours for the day side by side, separated by a vertical divider.
+- **`migrate_events.js`** — standalone migration script to create the `events` table and both partial unique indexes. Idempotent.
+- **`DurationInput` extracted as a shared component** — the H:MM segment duration input was originally inlined in `SessionModal`. It is now `DurationInput.js`, shared by both `SessionModal` and `EventModal`.

@@ -43,9 +43,12 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 ### Calendar
 
 - **Three views** — Month, Week, and Day. Navigating into a sub-view and back returns you to the same position in the parent view.
+- **Persistent topbar navigation** — Calendar, Clients, and Payments are always accessible via buttons in the header; the active view is highlighted with an accent underline.
 - **Israeli Jewish holidays** — Shabbat with accurate candle-lighting time shading (dynamically calculated per week in week/day views), national holidays, and chagim shown in Hebrew.
 - **Session blocks** — color-coded by status (blue for Scheduled, green for Completed), sorted by time within each day cell in month view.
+- **Event pills** — non-session calendar events (tests, school holidays, etc.) shown as amber/yellow pills in all three views. Timed events appear as positioned blocks on the time grid; all-day events appear as pills in the day column header.
 - **Monthly summary bar** — total owed, revenue for the month, and scheduled hours always visible at the top of month view.
+- **Day header summary** — projected income and total scheduled hours shown side by side in the day view header.
 - **Yearly summary modal** — revenue and hours broken down by month for the full year.
 - **Week number column** — ISO week numbers shown on the left edge of the month grid.
 
@@ -58,6 +61,14 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 - **Overlap detection** — blocks submission if the new session conflicts with an existing one for the same time slot.
 - **Smart form defaults** — date pre-fills from context (day view click, current week, or today); time pre-fills from the clicked hour slot in day view.
 - **Validation warnings** — past dates and unusual hours (before 7am or after 11pm) surface a warning but allow override after acknowledgement.
+- **Quick-log payment** — each session block in week and day views has a ₪ button that opens the payment form pre-filled with the client and calculated session cost.
+- **New Event shortcut** — in new-session mode, a "New Event" button opens EventModal pre-filled with the session's current date, time, and duration. The session form stays open.
+
+### Events
+
+- **Add, edit, and delete** calendar events with name, date, optional time, optional duration, and optional location.
+- **All-day and timed events** — events without a time appear as pills in day column headers; events with a time appear as positioned blocks on the time grid.
+- **Uniqueness constraint** — at most one timed event per date+time slot; all-day events (no time) are each stored independently.
 
 ### Clients
 
@@ -79,7 +90,7 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 
 ### Backup
 
-- **Download Backup** button in the sidebar downloads the live SQLite database file as a date-stamped `.db` file (e.g. `scheduler-backup-2026-04-19.db`). Protected by the same JWT auth as all other API routes.
+- `GET /api/backup` streams the live SQLite database file as a date-stamped `.db` file (e.g. `scheduler-backup-2026-04-19.db`). Protected by the same JWT auth as all other API routes.
 
 ---
 
@@ -104,13 +115,13 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 ├── client/
 │   └── src/
 │       ├── components/      # Unified modals (SessionModal, PaymentModal, ClientModal,
-│       │                    #   ConfirmDeleteModal), shared UI (Sidebar, LoginScreen,
-│       │                    #   YearlySummaryModal), and LocationCombobox
+│       │                    #   EventModal, ConfirmDeleteModal), shared UI (LoginScreen,
+│       │                    #   YearlySummaryModal), LocationCombobox, DurationInput
 │       ├── views/           # CalendarView, WeekView, DayView, ClientsView, PaymentsView
 │       ├── styles/          # CSS files scoped per view and component
 │       └── utils/           # API wrapper, date helpers, modalConstants, static holiday data
 └── server/
-    ├── routes/              # Express routers: auth, clients, sessions, payments, backup
+    ├── routes/              # Express routers: auth, clients, sessions, payments, events, backup
     ├── middleware/           # JWT auth guard applied to all protected routes
     └── db/                  # SQLite setup and schema
 ```
@@ -152,7 +163,17 @@ The frontend and backend are separate packages under a monorepo root. `npm run d
 | Method | PayBox / Bit / Transfer / Cash / Other |
 | Receipt # | Optional reference number |
 
-All balance and revenue figures are computed from these three tables at query time.
+### Events
+| Field | Notes |
+|---|---|
+| ID | Integer primary key (auto-assigned) |
+| Name | Required display label |
+| Date | YYYY-MM-DD (required) |
+| Time | HH:MM (optional — omit for all-day events) |
+| Duration | In minutes (optional) |
+| Location | Optional free-text string |
+
+All balance and revenue figures are computed from the clients/sessions/payments tables at query time.
 
 ---
 
