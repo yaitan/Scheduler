@@ -48,6 +48,7 @@ Scheduler/
 │       │   ├── SessionModal.js       # Unified new + edit session modal
 │       │   ├── PaymentModal.js       # Unified new + edit payment modal
 │       │   ├── ClientModal.js        # Unified new + edit client modal
+│       │   ├── LocationCombobox.js   # Shared location combobox (Session/ClientModal)
 │       │   ├── ConfirmDeleteModal.js # Reusable delete-confirmation overlay
 │       │   ├── YearlySummaryModal.js
 │       │   ├── LoginScreen.js
@@ -68,6 +69,7 @@ Scheduler/
 │       └── utils/
 │           ├── api.js                                  # apiFetch wrapper + token management
 │           ├── dateUtils.js                            # Date arithmetic helpers
+│           ├── modalConstants.js                       # Shared UI constants (LOCATION_OPTIONS, PAYMENT_METHODS)
 │           ├── israeliHolidays.js                      # Holiday lookup functions
 │           └── israeli_holidays_shabbat_2026_2027.json # Static holiday dataset
 │
@@ -103,7 +105,8 @@ CREATE TABLE IF NOT EXISTS clients (
   name         TEXT NOT NULL UNIQUE,
   rate         REAL NOT NULL,
   phone        TEXT,
-  parent_phone TEXT
+  parent_phone TEXT,
+  location     TEXT NOT NULL DEFAULT ''
 );
 ```
 
@@ -125,6 +128,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   rate        REAL NOT NULL,    -- ₪/hour at time of session; cost = duration * rate / 60
   status      TEXT NOT NULL DEFAULT 'Scheduled'
                 CHECK(status IN ('Scheduled', 'Completed', 'Cancelled')),
+  location    TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 ```
@@ -176,8 +180,8 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 |---|---|---|
 | `GET` | `/api/clients` | All clients with derived stats (total minutes, scheduled minutes, revenue, balance, last session date). Triggers `autoCompleteSessions`. |
 | `GET` | `/api/clients/:id` | Single client by integer ID; returns stats and upcoming sessions array |
-| `POST` | `/api/clients` | Create a client (`name`, `rate` required) |
-| `PUT` | `/api/clients/:id` | Update name/rate/phone/parent_phone; returns `409` on name collision |
+| `POST` | `/api/clients` | Create a client (`name`, `rate` required; `location` optional) |
+| `PUT` | `/api/clients/:id` | Update name/rate/phone/parent_phone/location; returns `409` on name collision |
 | `DELETE` | `/api/clients/:id` | Delete client and all associated sessions and payments (transactional) |
 
 ### Sessions
@@ -186,8 +190,8 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 |---|---|---|
 | `GET` | `/api/sessions` | All sessions; optional `?month=YYYY-MM`, `?year=YYYY`, `?client=name`. Triggers `autoCompleteSessions`. |
 | `GET` | `/api/sessions/:session_id` | Single session by integer ID |
-| `POST` | `/api/sessions` | Create session; `client_id` and `rate` required; runs overlap check, returns `409` on conflict |
-| `PUT` | `/api/sessions/:session_id` | Update session; re-runs overlap check excluding self; client is editable |
+| `POST` | `/api/sessions` | Create session; `client_id` and `rate` required; `location` optional; runs overlap check, returns `409` on conflict |
+| `PUT` | `/api/sessions/:session_id` | Update session; re-runs overlap check excluding self; client and location are editable |
 | `DELETE` | `/api/sessions/:session_id` | Delete session |
 
 ### Payments
@@ -307,3 +311,5 @@ In production, Express serves both the API and the compiled React frontend. Ther
 - **Unified modals** — each entity (session, payment, client) uses a single modal component for both create and edit flows, replacing six separate New/Edit modal files.
 - **H:MM duration segment input** — custom keyboard-driven input for session duration, replacing separate hours/minutes fields.
 - **`migrate_railway.js`** — standalone migration script to upgrade an existing Railway SQLite database to the new integer-ID schema without data loss.
+- **`migrate_location.js`** — standalone migration script to add the `location` column to `clients` and `sessions` with an empty-string default for all existing rows. Idempotent.
+- **Location field** — both clients and sessions now store a `location` string (e.g. "Zoom", "Home"). The session form defaults the field to the client's location and can be overridden per session. A custom `LocationCombobox` component shows preset options on focus while still allowing free text.

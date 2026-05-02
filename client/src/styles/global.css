@@ -49,19 +49,49 @@ body {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
+  justify-content: center;
+  padding: 0 20px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 50;
+  height: 48px;
 }
 
 .app-header-title {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.topbar-nav {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: 32px;
+}
+
+/* Reserve bottom-border space on all items so the active underline doesn't shift layout */
+.topbar-nav-item {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  font-weight: 500;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.topbar-nav-item:hover {
+  color: var(--text-primary);
+}
+
+.topbar-nav-item--active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
 }
 
 .hamburger {

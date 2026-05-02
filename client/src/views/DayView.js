@@ -25,11 +25,14 @@
  *                                       client-side to just the selected day.
  *                                       (Month-level fetch is reused by WeekView
  *                                       to avoid per-day requests.)
+ *   GET  /api/events?month=YYYY-MM    — Fetches all events for the month, filtered
+ *                                       client-side to the selected day.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import SessionModal from '../components/SessionModal';
+import EventModal from '../components/EventModal';
 import PaymentModal from '../components/PaymentModal';
 import { MONTH_NAMES, DOW_FULL, toDateStr, nowInIsrael, fmtDuration, timeToOffset } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName, getAllDayHolidays, getTimedHolidays } from '../utils/israeliHolidays';
@@ -62,21 +65,28 @@ const HOUR_PX    = 48; // Pixel height of one hour row. Also used by timeToOffse
  * States:
  *   sessions    {Array}       — Sessions for the displayed date, filtered from the
  *                               month fetch (GET /api/sessions?month=YYYY-MM).
+ *   events      {Array}       — Events for the displayed date, filtered from the
+ *                               month fetch (GET /api/events?month=YYYY-MM).
  *   newSession  {object|null} — When non-null, SessionModal opens in new-session mode.
  *                               Carries { date, time? } — time is pre-filled when the
  *                               user clicks a specific hour slot.
  *   editSession {object|null} — When non-null, SessionModal opens in edit mode with
  *                               this session object.
+ *   editEvent   {object|null} — When non-null, EventModal opens in edit mode with
+ *                               this event object.
  *   refreshKey  {number}      — Incrementing counter that triggers a re-fetch when
- *                               changed. Incremented after any modal save or delete.
+ *                               changed. Incremented after any session or event save/delete.
  *   paySession  {object|null} — When non-null, PaymentModal opens pre-filled for a
  *                               specific session. Carries { clientId, amount } where
  *                               amount = Math.round(duration * rate / 60).
  */
 function DayView({ date, onClose, onNavigate, onSessionCreated }) {
   const [sessions, setSessions]       = useState([]);
+  const [events, setEvents]           = useState([]);
   const [newSession, setNewSession]   = useState(null);  // null | { date, time }
   const [editSession, setEditSession] = useState(null);  // null | session object
+  const [editEvent, setEditEvent]     = useState(null);  // null | event object
+  const [newEventParams, setNewEventParams] = useState(null); // null | { date, time, duration }
   const [paySession, setPaySession]   = useState(null);  // null | { clientId, amount }
   const [refreshKey, setRefreshKey]   = useState(0);
   const bodyRef = useRef(null);
@@ -87,18 +97,20 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
 
   /**
    * GET /api/sessions?month=YYYY-MM
+   * GET /api/events?month=YYYY-MM
    *
-   * Fetches all sessions for the month, then filters to only this date.
-   * Month-level fetching avoids a per-day request and keeps the same
-   * cache key as WeekView (which also queries by month).
+   * Fetches sessions and events for the month in parallel, then filters each
+   * to only the displayed date. Month-level fetching avoids per-day requests
+   * and keeps the same cache key as WeekView.
    */
   useEffect(() => {
-    apiFetch(`/api/sessions?month=${monthStr}`)
-      .then(r => r.json())
-      .then(data => {
-        setSessions((Array.isArray(data) ? data : []).filter(s => s.date === dateStr));
-      })
-      .catch(() => setSessions([]));
+    Promise.all([
+      apiFetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []),
+      apiFetch(`/api/events?month=${monthStr}`).then(r => r.json()).catch(() => []),
+    ]).then(([sessionData, eventData]) => {
+      setSessions((Array.isArray(sessionData) ? sessionData : []).filter(s => s.date === dateStr));
+      setEvents((Array.isArray(eventData) ? eventData : []).filter(e => e.date === dateStr));
+    });
   }, [dateStr, monthStr, refreshKey]);
 
   // Scroll to 8:30am whenever the displayed date changes so the most active
@@ -151,6 +163,16 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
                 in the header rather than as a block on the grid. */}
             {getAllDayHolidays(HOLIDAY_EVENTS[dateStr]).map((ev, i) => (
               <span key={i} className="day-view-holiday">{getHebrewName(ev.name)}</span>
+            ))}
+            {/* All-day events (no time) rendered like holidays but yellow and clickable */}
+            {events.filter(e => !e.time).map(ev => (
+              <span
+                key={ev.id}
+                className="day-event-allday"
+                onClick={() => setEditEvent(ev)}
+              >
+                {ev.name}
+              </span>
             ))}
             {sessions.length > 0 && (
               <div className="day-view-summary">
@@ -258,6 +280,23 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
                 </div>
               ))}
 
+              {/* Timed event blocks — yellow, absolutely positioned.
+                  Duration-less events get a fixed half-hour height. */}
+              {events.filter(e => e.time).map(ev => (
+                <div
+                  key={`ev-${ev.id}`}
+                  className="day-event"
+                  style={{
+                    top:    timeToOffset(ev.time, HOUR_PX),
+                    height: Math.max(ev.duration ? (ev.duration / 60) * HOUR_PX : HOUR_PX / 2, 24),
+                  }}
+                  onClick={e => { e.stopPropagation(); setEditEvent(ev); }}
+                >
+                  <span className="day-event-name">{ev.name}</span>
+                  <span className="day-event-meta">{ev.time}{ev.duration ? ` · ${fmtDuration(ev.duration)}` : ''}{ev.location ? ` · ${ev.location}` : ''}</span>
+                </div>
+              ))}
+
             </div>
           </div>
         </div>
@@ -281,6 +320,30 @@ function DayView({ date, onClose, onNavigate, onSessionCreated }) {
           initialTime={newSession.time}
           onClose={() => setNewSession(null)}
           onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onEventCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onOpenNewEvent={params => { setNewSession(null); setNewEventParams(params); }}
+        />
+      )}
+
+      {/* Edit event modal — opened by clicking a timed event block or all-day pill */}
+      {editEvent && (
+        <EventModal
+          event={editEvent}
+          onClose={() => setEditEvent(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onDeleted={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* EventModal opened via "New Event" from SessionModal */}
+      {newEventParams && (
+        <EventModal
+          initialDate={newEventParams.date}
+          initialTime={newEventParams.time}
+          initialDuration={newEventParams.duration}
+          onClose={() => setNewEventParams(null)}
+          onSaved={() => { setNewEventParams(null); setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onDeleted={() => { setNewEventParams(null); setRefreshKey(k => k + 1); onSessionCreated?.(); }}
         />
       )}
 

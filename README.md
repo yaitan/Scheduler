@@ -51,7 +51,7 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 
 ### Sessions
 
-- **Add, edit, and delete** sessions with client, date, time, duration, rate, and status fields.
+- **Add, edit, and delete** sessions with client, date, time, duration, rate, location, and status fields.
 - **Per-session rate** — each session stores the hourly rate at the time it was booked, so billing remains accurate even if a client's rate changes later.
 - **H:MM duration input** — a custom segment input for hours and minutes; auto-advances between segments, supports arrow-key increment/decrement, enforces a 30-minute minimum.
 - **Status lifecycle** — Scheduled → Completed → Cancelled. Sessions automatically flip from Scheduled to Completed once their end time has passed; this is triggered lazily on page load or any data fetch rather than by a background timer.
@@ -61,7 +61,7 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 
 ### Clients
 
-- Store name, per-session rate, phone number, and parent phone number.
+- Store name, per-session rate, phone number, parent phone number, and default location.
 - All financial stats (balance owed, total revenue, hours completed, hours scheduled) are derived at query time from the Sessions and Payments tables — never stored directly.
 - Per-client profile with upcoming sessions and payment history accessible from the clients list.
 
@@ -104,11 +104,11 @@ For a deep dive into the stack, data model, API routes, and design decisions, se
 ├── client/
 │   └── src/
 │       ├── components/      # Unified modals (SessionModal, PaymentModal, ClientModal,
-│       │                    #   ConfirmDeleteModal) and shared UI (Sidebar, LoginScreen,
-│       │                    #   YearlySummaryModal)
+│       │                    #   ConfirmDeleteModal), shared UI (Sidebar, LoginScreen,
+│       │                    #   YearlySummaryModal), and LocationCombobox
 │       ├── views/           # CalendarView, WeekView, DayView, ClientsView, PaymentsView
 │       ├── styles/          # CSS files scoped per view and component
-│       └── utils/           # API wrapper, date helpers, static holiday data
+│       └── utils/           # API wrapper, date helpers, modalConstants, static holiday data
 └── server/
     ├── routes/              # Express routers: auth, clients, sessions, payments, backup
     ├── middleware/           # JWT auth guard applied to all protected routes
@@ -129,6 +129,7 @@ The frontend and backend are separate packages under a monorepo root. `npm run d
 | Rate | Default per-session rate in ₪/hour |
 | Phone | Student contact |
 | Parent Phone | Optional |
+| Location | Default session location (e.g. "Zoom", "Home"). Empty string if unset. |
 
 ### Sessions
 | Field | Notes |
@@ -139,6 +140,7 @@ The frontend and backend are separate packages under a monorepo root. `npm run d
 | Duration | In minutes |
 | Rate | Hourly rate captured at booking time (₪/hour); `cost = duration × rate / 60` |
 | Status | `Scheduled` / `Completed` / `Cancelled` |
+| Location | Where the session takes place. Defaults to the client's location; overridable per session. |
 
 ### Payments
 | Field | Notes |

@@ -22,6 +22,8 @@
  * API routes used:
  *   GET  /api/sessions?month=YYYY-MM   — Sessions for the displayed month.
  *                                        Re-fetched on month change and on refreshKey change.
+ *   GET  /api/events?month=YYYY-MM     — Events for the displayed month.
+ *                                        Re-fetched alongside sessions on every refreshKey change.
  *   GET  /api/payments/summary         — Per-client balance totals, used to compute
  *                                        the "Total Owed" figure in the summary bar.
  *   GET  /api/sessions?year=YYYY       — All sessions for the year, fetched on demand
@@ -32,6 +34,7 @@ import React, { useState, useEffect } from 'react';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import SessionModal from '../components/SessionModal';
+import EventModal from '../components/EventModal';
 import YearlySummaryModal from '../components/YearlySummaryModal';
 import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
@@ -98,6 +101,8 @@ function buildCalendarWeeks(year, month) {
  *   month             {number}      — The currently displayed month (0-based).
  *   sessions          {Array}       — Sessions for the displayed month from
  *                                     GET /api/sessions?month=YYYY-MM.
+ *   events            {Array}       — Events for the displayed month from
+ *                                     GET /api/events?month=YYYY-MM.
  *   totalOwed         {number}      — Sum of all positive client balances from
  *                                     GET /api/payments/summary, displayed in
  *                                     the summary bar.
@@ -121,12 +126,14 @@ function CalendarView({ onNavigate }) {
   const [year, setYear]   = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [sessions, setSessions]     = useState([]);
+  const [events, setEvents]         = useState([]);
   const [totalOwed, setTotalOwed]   = useState(0);
   const [loading, setLoading]       = useState(false);
   const [subView, setSubView]       = useState(null); // null | 'week' | 'day'
   const [selectedWeekStart, setSelectedWeekStart] = useState(null);
   const [selectedDay, setSelectedDay]             = useState(null);
   const [newSessionOpen, setNewSessionOpen]       = useState(false);
+  const [newEventParams, setNewEventParams]       = useState(null); // null | { date, time, duration }
   const [yearlySummaryOpen, setYearlySummaryOpen] = useState(false);
   const [yearlyData, setYearlyData]               = useState(null);
   const [refreshKey, setRefreshKey]               = useState(0);
@@ -135,19 +142,22 @@ function CalendarView({ onNavigate }) {
 
   /**
    * GET /api/sessions?month=YYYY-MM
+   * GET /api/events?month=YYYY-MM
    * GET /api/payments/summary
    *
-   * Fetches sessions and payment summary in parallel whenever the displayed
-   * month changes or refreshKey increments. totalOwed sums only positive
-   * balances (clients who owe money) — credits are excluded from the display.
+   * Fetches sessions, events, and payment summary in parallel whenever the
+   * displayed month changes or refreshKey increments. totalOwed sums only
+   * positive balances — credits are excluded from the display.
    */
   useEffect(() => {
     setLoading(true);
     Promise.all([
       apiFetch(`/api/sessions?month=${monthStr}`).then(r => r.json()).catch(() => []),
+      apiFetch(`/api/events?month=${monthStr}`).then(r => r.json()).catch(() => []),
       apiFetch('/api/payments/summary').then(r => r.json()).catch(() => []),
-    ]).then(([sessionData, summaryData]) => {
+    ]).then(([sessionData, eventData, summaryData]) => {
       setSessions(Array.isArray(sessionData) ? sessionData : []);
+      setEvents(Array.isArray(eventData) ? eventData : []);
 
       // Sum only positive balances — negative values are credits, not owed amounts.
       const owed = (Array.isArray(summaryData) ? summaryData : [])
@@ -169,6 +179,13 @@ function CalendarView({ onNavigate }) {
   Object.values(sessionsByDate).forEach(list =>
     list.sort((a, b) => a.time.localeCompare(b.time))
   );
+
+  // Group events by date (already ordered by the API: all-day first, then by time).
+  const eventsByDate = {};
+  events.forEach(e => {
+    if (!eventsByDate[e.date]) eventsByDate[e.date] = [];
+    eventsByDate[e.date].push(e);
+  });
 
   // Summary bar values computed from the current month's session data.
   const completed    = sessions.filter(s => s.status === 'Completed');
@@ -313,8 +330,9 @@ function CalendarView({ onNavigate }) {
                 const isCurrentMonth = date.getMonth() === month;
                 const isToday        = dateStr === todayStr;
 
-                // Padding cells (outside the current month) show no sessions or holidays.
+                // Padding cells (outside the current month) show no sessions, events, or holidays.
                 const daySessions = isCurrentMonth ? (sessionsByDate[dateStr] || []) : [];
+                const dayEvents   = isCurrentMonth ? (eventsByDate[dateStr]   || []) : [];
                 const dayHolidays = isCurrentMonth ? (HOLIDAY_EVENTS[dateStr] || []) : [];
 
                 return (
@@ -349,6 +367,17 @@ function CalendarView({ onNavigate }) {
                           <span className="pill-time">{s.time}</span>
                         </div>
                       ))}
+                      {/* Event pills — yellow; clicking bubbles up to cell onClick (opens DayView) */}
+                      {dayEvents.map(ev => (
+                        <div
+                          key={`ev-${ev.id}`}
+                          className="event-pill"
+                          onClick={e => handleDayClick(e, date)}
+                        >
+                          <span className="pill-client">{ev.name}</span>
+                          {ev.time && <span className="pill-time">{ev.time}</span>}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -373,6 +402,20 @@ function CalendarView({ onNavigate }) {
         <SessionModal
           onClose={() => setNewSessionOpen(false)}
           onSaved={() => setRefreshKey(k => k + 1)}
+          onEventCreated={() => setRefreshKey(k => k + 1)}
+          onOpenNewEvent={params => { setNewSessionOpen(false); setNewEventParams(params); }}
+        />
+      )}
+
+      {/* EventModal opened via "New Event" from SessionModal */}
+      {newEventParams && (
+        <EventModal
+          initialDate={newEventParams.date}
+          initialTime={newEventParams.time}
+          initialDuration={newEventParams.duration}
+          onClose={() => setNewEventParams(null)}
+          onSaved={() => { setNewEventParams(null); setRefreshKey(k => k + 1); }}
+          onDeleted={() => { setNewEventParams(null); setRefreshKey(k => k + 1); }}
         />
       )}
 

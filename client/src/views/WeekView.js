@@ -22,11 +22,13 @@
  * API routes used:
  *   GET  /api/sessions?month=YYYY-MM  — One request per unique month spanned by
  *                                       the displayed week (usually 1, sometimes 2).
+ *   GET  /api/events?month=YYYY-MM    — Same month-based fetching as sessions.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import DayView from './DayView';
 import SessionModal from '../components/SessionModal';
+import EventModal from '../components/EventModal';
 import PaymentModal from '../components/PaymentModal';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, nowInIsrael, fmtDuration, timeToOffset } from '../utils/dateUtils';
 import { getHolidayEventsByDate, getHebrewName, getAllDayHolidays, getTimedHolidays } from '../utils/israeliHolidays';
@@ -90,13 +92,17 @@ function weekLabel(days) {
  *                                user navigates prev/next.
  *   sessions     {Array}       — All sessions for the displayed week, fetched from
  *                                GET /api/sessions?month=YYYY-MM (one or two requests).
+ *   events       {Array}       — All events for the displayed week, fetched from
+ *                                GET /api/events?month=YYYY-MM (one or two requests).
  *   selectedDay  {Date|null}   — When non-null, DayView is rendered for this date.
  *   newSession   {object|null} — When non-null, SessionModal opens in new-session mode.
  *                                Carries { date, time? }.
  *   editSession  {object|null} — When non-null, SessionModal opens in edit mode with
  *                                this session object.
+ *   editEvent    {object|null} — When non-null, EventModal opens in edit mode with
+ *                                this event object.
  *   refreshKey   {number}      — Incrementing counter that triggers a re-fetch when
- *                                changed. Incremented after any modal save or delete.
+ *                                changed. Incremented after any session or event save/delete.
  *   paySession   {object|null} — When non-null, PaymentModal opens pre-filled for a
  *                                specific session. Carries { clientId, amount } where
  *                                amount = Math.round(duration * rate / 60).
@@ -104,9 +110,12 @@ function weekLabel(days) {
 function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
   const [weekStart, setWeekStart]     = useState(initialWeekStart);
   const [sessions, setSessions]       = useState([]);
+  const [events, setEvents]           = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [newSession, setNewSession]   = useState(null);  // null | { date, time }
   const [editSession, setEditSession] = useState(null);  // null | session object
+  const [editEvent, setEditEvent]     = useState(null);  // null | event object
+  const [newEventParams, setNewEventParams] = useState(null); // null | { date, time, duration }
   const [paySession, setPaySession]   = useState(null);  // null | { clientId, amount }
   const [refreshKey, setRefreshKey]   = useState(0);
   const scrollRef = useRef(null);
@@ -124,9 +133,11 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
 
   /**
    * GET /api/sessions?month=YYYY-MM  (one or two requests)
+   * GET /api/events?month=YYYY-MM    (same months, parallel)
    *
-   * Derives the unique set of months spanned by this week, fetches sessions
-   * for each in parallel, then merges and filters to only dates within the week.
+   * Derives the unique set of months spanned by this week, fetches sessions and
+   * events for each in parallel, then merges and filters to only dates within
+   * the week.
    *
    * Two-month fetches happen when the week crosses a month boundary
    * (e.g. a week from Jan 29 to Feb 4 requires both "2025-01" and "2025-02").
@@ -138,11 +149,18 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
     ))];
     const weekDates = new Set(days.map(toDateStr));
 
-    Promise.all(
-      months.map(m => apiFetch(`/api/sessions?month=${m}`).then(r => r.json()).catch(() => []))
-    ).then(results => {
-      // Flatten all month results and keep only sessions within this week's dates.
-      setSessions(results.flat().filter(s => weekDates.has(s.date)));
+    Promise.all([
+      // Sessions: one request per month, flatten and filter to this week.
+      Promise.all(
+        months.map(m => apiFetch(`/api/sessions?month=${m}`).then(r => r.json()).catch(() => []))
+      ).then(results => results.flat().filter(s => weekDates.has(s.date))),
+      // Events: same month-based approach.
+      Promise.all(
+        months.map(m => apiFetch(`/api/events?month=${m}`).then(r => r.json()).catch(() => []))
+      ).then(results => results.flat().filter(e => weekDates.has(e.date))),
+    ]).then(([sessionList, eventList]) => {
+      setSessions(sessionList);
+      setEvents(eventList);
     });
   }, [weekStartStr, refreshKey]);
 
@@ -173,6 +191,12 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
     (byDate[s.date] = byDate[s.date] || []).push(s);
   });
   Object.values(byDate).forEach(list => list.sort((a, b) => a.time.localeCompare(b.time)));
+
+  // Group events by date. The API already orders them (all-day first, then by time).
+  const eventsByDate = {};
+  events.forEach(e => {
+    (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e);
+  });
 
   return (
     <div className="week-view">
@@ -214,6 +238,10 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
             const dateStr     = toDateStr(date);
             const isToday     = dateStr === todayStr;
             const daySessions = byDate[dateStr] || [];
+            const dayEvents   = eventsByDate[dateStr] || [];
+            // All-day events (no time) appear in the header; timed events go on the grid.
+            const allDayEvents  = dayEvents.filter(e => !e.time);
+            const timedEvents   = dayEvents.filter(e =>  e.time);
 
             return (
               <div key={di} className={`week-day-col${isToday ? ' week-day-col--today' : ''}`}>
@@ -227,6 +255,17 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                   {/* All-day holiday names shown in the header (timed events go on the grid) */}
                   {getAllDayHolidays(HOLIDAY_EVENTS[dateStr]).map((ev, i) => (
                     <span key={i} className="week-day-holiday">{getHebrewName(ev.name)}</span>
+                  ))}
+                  {/* All-day events (no time) as clickable pills in the header */}
+                  {allDayEvents.map(ev => (
+                    <span
+                      key={ev.id}
+                      className="week-event-allday"
+                      onClick={e => { e.stopPropagation(); setEditEvent(ev); }}
+                      title={ev.name}
+                    >
+                      {ev.name}
+                    </span>
                   ))}
                 </div>
 
@@ -297,6 +336,23 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
                     </div>
                   ))}
 
+                  {/* Timed event blocks — yellow, minimum 20px height.
+                      Duration-less events default to half an HOUR_PX tall. */}
+                  {timedEvents.map(ev => (
+                    <div
+                      key={`ev-${ev.id}`}
+                      className="week-event"
+                      style={{
+                        top:    timeToOffset(ev.time, HOUR_PX),
+                        height: Math.max(ev.duration ? (ev.duration / 60) * HOUR_PX : HOUR_PX / 2, 20),
+                      }}
+                      onClick={e => { e.stopPropagation(); setEditEvent(ev); }}
+                    >
+                      <span className="week-event-name">{ev.name}</span>
+                      <span className="week-event-meta">{ev.time}{ev.duration ? ` · ${fmtDuration(ev.duration)}` : ''}</span>
+                    </div>
+                  ))}
+
                 </div>
               </div>
             );
@@ -332,6 +388,30 @@ function WeekView({ weekStart: initialWeekStart, onBack, onSessionCreated }) {
           initialTime={newSession.time}
           onClose={() => setNewSession(null)}
           onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onEventCreated={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onOpenNewEvent={params => { setNewSession(null); setNewEventParams(params); }}
+        />
+      )}
+
+      {/* Edit event modal — opened by clicking an event block or all-day pill */}
+      {editEvent && (
+        <EventModal
+          event={editEvent}
+          onClose={() => setEditEvent(null)}
+          onSaved={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onDeleted={() => { setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+        />
+      )}
+
+      {/* EventModal opened via "New Event" from SessionModal */}
+      {newEventParams && (
+        <EventModal
+          initialDate={newEventParams.date}
+          initialTime={newEventParams.time}
+          initialDuration={newEventParams.duration}
+          onClose={() => setNewEventParams(null)}
+          onSaved={() => { setNewEventParams(null); setRefreshKey(k => k + 1); onSessionCreated?.(); }}
+          onDeleted={() => { setNewEventParams(null); setRefreshKey(k => k + 1); onSessionCreated?.(); }}
         />
       )}
 

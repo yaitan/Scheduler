@@ -22,6 +22,23 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 
+CREATE TABLE IF NOT EXISTS events (
+  id       INTEGER PRIMARY KEY,
+  name     TEXT NOT NULL,
+  date     TEXT NOT NULL,    -- ISO 8601: YYYY-MM-DD
+  time     TEXT,             -- HH:MM (24-hour), NULL means all-day
+  duration INTEGER,          -- minutes, NULL means no duration
+  location TEXT NOT NULL DEFAULT ''
+);
+
+-- One timed event per date+time slot (time IS NOT NULL).
+CREATE UNIQUE INDEX IF NOT EXISTS events_timed_unique
+  ON events(date, time) WHERE time IS NOT NULL;
+
+-- At most one all-day event per date (time IS NULL).
+CREATE UNIQUE INDEX IF NOT EXISTS events_allday_unique
+  ON events(date) WHERE time IS NULL;
+
 CREATE TABLE IF NOT EXISTS payments (
   id             INTEGER PRIMARY KEY,
   client_id      INTEGER NOT NULL,

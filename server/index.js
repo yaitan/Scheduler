@@ -51,6 +51,7 @@ app.use('/api', requireAuth);
 
 app.use('/api/clients',  require('./routes/clients'));
 app.use('/api/sessions', require('./routes/sessions'));
+app.use('/api/events',   require('./routes/events'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/backup',   require('./routes/backup'));
 
