@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS clients (
   id           INTEGER PRIMARY KEY,
   name         TEXT NOT NULL UNIQUE,
   rate         REAL NOT NULL,
-  phone        TEXT,
-  parent_phone TEXT,
+  contact_info TEXT,
+  billing_name TEXT,
   location     TEXT NOT NULL DEFAULT ''
 );
 

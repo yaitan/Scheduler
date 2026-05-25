@@ -14,7 +14,7 @@
  * Validation:
  *   - Name and Rate are required. Rate must be a positive whole number.
  *   - Duplicate name detection is handled server-side (409 response).
- *   - Phone fields are optional; empty strings are sent as null.
+ *   - Contact info and billing name are optional; empty strings are sent as null.
  *   - Location is optional; empty string is valid and sent as-is.
  *
  * API routes used:
@@ -55,7 +55,7 @@ function validateRateField(rate) {
  *
  * States:
  *   form          {object}  — Controlled form values for all five fields:
- *                               name, rate, phone, parent_phone, location.
+ *                               name, rate, contact_info, billing_name, location.
  *                             Rate is stored as a string to match the input value
  *                             type; it is converted to a Number before sending to the API.
  *   errors        {object}  — Per-field client-side validation error messages.
@@ -74,8 +74,8 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
   const [form, setForm] = useState({
     name:         client?.name         ?? '',
     rate:         client?.rate != null ? String(client.rate) : '',
-    phone:        client?.phone        ?? '',
-    parent_phone: client?.parent_phone ?? '',
+    contact_info: client?.contact_info ?? '',
+    billing_name: client?.billing_name ?? '',
     location:     client?.location     ?? '',
   });
   const [errors, setErrors]         = useState({});
@@ -116,8 +116,8 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
    * PUT  /api/clients/:id  (edit client)
    *
    * Validates the form, then sends a create or update request.
-   * Phone fields are trimmed and converted to null if empty, since the API
-   * stores them as nullable strings.
+   * Contact info and billing name are trimmed and converted to null if empty,
+   * since the API stores them as nullable strings.
    *
    * On 409: shows a duplicate-name error without closing the modal.
    * On success: calls onSaved() for the parent to refresh its list.
@@ -139,8 +139,8 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
           body: JSON.stringify({
             name:         form.name.trim(),
             rate:         Number(form.rate),
-            phone:        form.phone.trim()        || null,
-            parent_phone: form.parent_phone.trim() || null,
+            contact_info: form.contact_info.trim() || null,
+            billing_name: form.billing_name.trim() || null,
             location:     form.location.trim(),
           }),
         }
@@ -244,22 +244,22 @@ function ClientModal({ client, onClose, onSaved, onDeleted }) {
             <LocationCombobox value={form.location} onChange={v => set('location', v)} />
           </div>
 
-          {/* Phone fields are optional — empty values are sent as null to the API */}
+          {/* Contact and billing fields are optional — empty values are sent as null to the API */}
           <div className="form-field">
-            <label className="form-label">Phone</label>
+            <label className="form-label">Contact Info</label>
             <input
               className="form-input"
-              value={form.phone}
-              onChange={e => set('phone', e.target.value)}
+              value={form.contact_info}
+              onChange={e => set('contact_info', e.target.value)}
             />
           </div>
 
           <div className="form-field">
-            <label className="form-label">Parent Phone</label>
+            <label className="form-label">Billing Name</label>
             <input
               className="form-input"
-              value={form.parent_phone}
-              onChange={e => set('parent_phone', e.target.value)}
+              value={form.billing_name}
+              onChange={e => set('billing_name', e.target.value)}
             />
           </div>
 

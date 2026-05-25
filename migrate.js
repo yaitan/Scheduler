@@ -11,6 +11,12 @@
  *   1. Create the `events` table with timed and all-day uniqueness indexes.
  *   2. Add a `location` column (TEXT NOT NULL DEFAULT '') to `clients` and
  *      `sessions`; pre-existing rows receive an empty string.
+ *   3. Replace `phone` and `parent_phone` columns on `clients` with
+ *      `contact_info` and `billing_name`. Existing phone data is merged into
+ *      contact_info using the rule:
+ *        both:         "{phone}, parent: {parent_phone}"
+ *        phone only:   "{phone}"
+ *        parent only:  "parent: {parent_phone}"
  *
  * Usage:
  *   node migrate.js
@@ -112,6 +118,48 @@ if (hasColumn('sessions', 'location')) {
 } else {
   db.exec(`ALTER TABLE sessions ADD COLUMN location TEXT NOT NULL DEFAULT ''`);
   console.log('Added sessions.location');
+}
+
+// ─── Migration 3: phone → contact_info, add billing_name ─────────────────────
+
+if (hasColumn('clients', 'contact_info')) {
+  console.log('clients.contact_info already exists — skipping.');
+} else {
+  db.exec(`ALTER TABLE clients ADD COLUMN contact_info TEXT`);
+  console.log('Added clients.contact_info');
+}
+
+if (hasColumn('clients', 'billing_name')) {
+  console.log('clients.billing_name already exists — skipping.');
+} else {
+  db.exec(`ALTER TABLE clients ADD COLUMN billing_name TEXT`);
+  console.log('Added clients.billing_name');
+}
+
+/* Merge old phone data into contact_info, then drop the old columns.
+   The phone column check gates this so the block only runs once. */
+if (hasColumn('clients', 'phone')) {
+  db.exec(`
+    UPDATE clients SET contact_info =
+      CASE
+        WHEN phone IS NOT NULL AND parent_phone IS NOT NULL
+          THEN phone || ', parent: ' || parent_phone
+        WHEN phone IS NOT NULL
+          THEN phone
+        WHEN parent_phone IS NOT NULL
+          THEN 'parent: ' || parent_phone
+        ELSE NULL
+      END
+  `);
+  console.log('Merged phone/parent_phone into clients.contact_info');
+
+  db.exec(`ALTER TABLE clients DROP COLUMN phone`);
+  console.log('Dropped clients.phone');
+}
+
+if (hasColumn('clients', 'parent_phone')) {
+  db.exec(`ALTER TABLE clients DROP COLUMN parent_phone`);
+  console.log('Dropped clients.parent_phone');
 }
 
 console.log('Migration complete.');

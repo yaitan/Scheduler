@@ -39,7 +39,7 @@ import DayView from './DayView';
 import SessionModal from '../components/SessionModal';
 import EventModal from '../components/EventModal';
 import YearlySummaryModal from '../components/YearlySummaryModal';
-import { getHolidayEventsByDate, getHebrewName } from '../utils/israeliHolidays';
+import { getHolidayEventsByDate, getHebrewName, getAllDayHolidays, getTimedHolidays } from '../utils/israeliHolidays';
 import { apiFetch } from '../utils/api';
 import { MONTH_NAMES, DOW_LABELS, toDateStr, getISOWeekNumber, nowInIsrael, fmtDuration } from '../utils/dateUtils';
 import '../styles/calendar.css';
@@ -391,36 +391,77 @@ function CalendarView({ onNavigate }) {
                   >
                     <div className="cell-date-num">{date.getDate()}</div>
 
-                    {dayHolidays.length > 0 && (
-                      <div className="cell-holidays">
-                        {dayHolidays.map((ev, i) => (
-                          <div key={i} className="cell-holiday">{getHebrewName(ev.name)}</div>
-                        ))}
-                      </div>
-                    )}
+                    {/* All-day holidays then all-day events — no time, so shown as labels above timed items */}
+                    {(() => {
+                      const allDayHols = getAllDayHolidays(dayHolidays);
+                      const allDayEvs  = dayEvents.filter(ev => !ev.time);
+                      if (!allDayHols.length && !allDayEvs.length) return null;
+                      return (
+                        <div className="cell-holidays">
+                          {allDayHols.map((h, i) => (
+                            <div key={i} className="cell-holiday">{getHebrewName(h.name)}</div>
+                          ))}
+                          {allDayEvs.map(ev => (
+                            <div
+                              key={`ev-${ev.id}`}
+                              className="event-pill"
+                              onClick={e => handleDayClick(e, date)}
+                            >
+                              <span className="pill-client">{ev.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
+                    {/* Sessions, timed events, and timed holidays merged in chronological order */}
                     <div className="cell-sessions">
-                      {daySessions.map(s => (
-                        <div
-                          key={s.id}
-                          className={`session-pill session-pill--${s.status.toLowerCase()}`}
-                          onClick={e => handleDayClick(e, date)}
-                        >
-                          <span className="pill-client">{s.name}</span>
-                          <span className="pill-time">{s.time}</span>
-                        </div>
-                      ))}
-                      {/* Event pills — yellow; clicking bubbles up to cell onClick (opens DayView) */}
-                      {dayEvents.map(ev => (
-                        <div
-                          key={`ev-${ev.id}`}
-                          className="event-pill"
-                          onClick={e => handleDayClick(e, date)}
-                        >
-                          <span className="pill-client">{ev.name}</span>
-                          {ev.time && <span className="pill-time">{ev.time}</span>}
-                        </div>
-                      ))}
+                      {[
+                        ...daySessions.map(s => ({
+                          type: 'session', item: s,
+                          key: `s-${s.id}`,
+                          sortKey: s.time,
+                        })),
+                        ...dayEvents.filter(ev => !!ev.time).map(ev => ({
+                          type: 'event', item: ev,
+                          key: `ev-${ev.id}`,
+                          sortKey: ev.time,
+                        })),
+                        ...getTimedHolidays(dayHolidays).map((h, i) => ({
+                          type: 'holiday', item: h,
+                          key: `th-${i}`,
+                          // Friday Shabbat has start_time (candle-lighting); Saturday has end_time (havdalah).
+                          sortKey: h.start_time || h.end_time || '00:00',
+                        })),
+                      ]
+                        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+                        .map(({ type, item, key }) => {
+                          if (type === 'session') return (
+                            <div
+                              key={key}
+                              className={`session-pill session-pill--${item.status.toLowerCase()}`}
+                              onClick={e => handleDayClick(e, date)}
+                            >
+                              <span className="pill-client">{item.name}</span>
+                              <span className="pill-time">{item.time}</span>
+                            </div>
+                          );
+                          if (type === 'event') return (
+                            <div
+                              key={key}
+                              className="event-pill"
+                              onClick={e => handleDayClick(e, date)}
+                            >
+                              <span className="pill-client">{item.name}</span>
+                              <span className="pill-time">{item.time}</span>
+                            </div>
+                          );
+                          // timed holiday (e.g. Shabbat candle-lighting / havdalah)
+                          return (
+                            <div key={key} className="cell-holiday">{getHebrewName(item.name)}</div>
+                          );
+                        })
+                      }
                     </div>
                   </div>
                 );

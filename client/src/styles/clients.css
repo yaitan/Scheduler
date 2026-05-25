@@ -120,6 +120,11 @@
   color: var(--text-secondary);
 }
 
+.clients-table td.scheduled--zero {
+  color: var(--accent-yellow, #e6b84a);
+  font-weight: 600;
+}
+
 /* ── Modal overlay ───────────────────────────────────────────── */
 
 .modal-overlay {

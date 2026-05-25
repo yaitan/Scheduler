@@ -110,7 +110,7 @@ function ClientsView() {
                   <td>{c.name}</td>
                   <BalanceCell value={c.balance_owed} />
                   <td className="col-num">₪{c.rate.toLocaleString()}</td>
-                  <td className="col-num">{fmtDuration(c.scheduled_minutes)}</td>
+                  <td className={`col-num${c.scheduled_minutes === 0 ? ' scheduled--zero' : ''}`}>{fmtDuration(c.scheduled_minutes)}</td>
                   <td className="col-num">{fmtDuration(c.total_minutes)}</td>
                   <td className="col-num">₪{Math.round(c.total_revenue).toLocaleString()}</td>
                 </tr>

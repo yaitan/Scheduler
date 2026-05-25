@@ -41,7 +41,7 @@ const router = Router();
  *   [
  *     {
  *       "id": 1, "name": "Alice", "rate": 150,
- *       "phone": "050-0000000", "parent_phone": null, "location": "Zoom",
+ *       "contact_info": "050-0000000", "billing_name": null, "location": "Zoom",
  *       "total_minutes": 180, "scheduled_minutes": 60,
  *       "total_revenue": 450, "balance_owed": 150,
  *       "last_session_date": "2025-03-10"
@@ -59,8 +59,8 @@ router.get('/', (req, res) => {
       c.id,
       c.name,
       c.rate,
-      c.phone,
-      c.parent_phone,
+      c.contact_info,
+      c.billing_name,
       c.location,
       COALESCE(SUM(CASE WHEN s.status = 'Completed' THEN s.duration ELSE 0 END), 0) AS total_minutes,
       COALESCE(SUM(CASE WHEN s.status = 'Scheduled' THEN s.duration ELSE 0 END), 0) AS scheduled_minutes,
@@ -93,7 +93,7 @@ router.get('/', (req, res) => {
  * Example response (200):
  *   {
  *     "id": 1, "name": "Alice", "rate": 150,
- *     "phone": "050-0000000", "parent_phone": null, "location": "Zoom",
+ *     "contact_info": "050-0000000", "billing_name": null, "location": "Zoom",
  *     "total_sessions": 6, "scheduled_sessions": 1,
  *     "total_minutes": 360, "balance_owed": 150,
  *     "upcoming_sessions": [
@@ -112,8 +112,8 @@ router.get('/:client_id', (req, res) => {
       c.id,
       c.name,
       c.rate,
-      c.phone,
-      c.parent_phone,
+      c.contact_info,
+      c.billing_name,
       c.location,
       COUNT(DISTINCT CASE WHEN s.status = 'Completed' THEN s.id END) AS total_sessions,
       COUNT(DISTINCT CASE WHEN s.status = 'Scheduled' THEN s.id END) AS scheduled_sessions,
@@ -142,38 +142,38 @@ router.get('/:client_id', (req, res) => {
 /**
  * POST /api/clients
  *
- * Creates a new client record. Phone fields are optional and stored as NULL
- * if omitted. Client names must be unique (enforced by a UNIQUE index in the schema).
+ * Creates a new client record. Contact and billing fields are optional and stored
+ * as NULL if omitted. Client names must be unique (enforced by a UNIQUE index in the schema).
  *
  * Body:
  *   name          {string}       — Client's full name. Required.
  *   rate          {number}       — Hourly rate in ₪. Required.
- *   phone         {string|null}  — Client's phone number. Optional.
- *   parent_phone  {string|null}  — Parent's phone number. Optional.
+ *   contact_info  {string|null}  — Contact phone/info string. Optional.
+ *   billing_name  {string|null}  — Name to use on billing/receipts. Optional.
  *   location      {string}       — Default session location (e.g. "Zoom"). Optional, defaults to ''.
  *
  * Example request:
  *   POST /api/clients
- *   { "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null, "location": "Zoom" }
+ *   { "name": "Alice", "rate": 150, "contact_info": "050-0000000", "billing_name": null, "location": "Zoom" }
  *
  * Example response (201):
- *   { "id": 1, "name": "Alice", "rate": 150, "phone": "050-0000000", "parent_phone": null, "location": "Zoom" }
+ *   { "id": 1, "name": "Alice", "rate": 150, "contact_info": "050-0000000", "billing_name": null, "location": "Zoom" }
  *
  * Errors:
  *   400  { "error": "name and rate are required" }
  *   409  { "error": "Client already exists" }  — Duplicate name.
  */
 router.post('/', (req, res) => {
-  const { name, rate, phone, parent_phone, location = '' } = req.body;
+  const { name, rate, contact_info, billing_name, location = '' } = req.body;
   if (!name || rate == null) return res.status(400).json({ error: 'name and rate are required' });
 
   try {
     const result = db.prepare(`
-      INSERT INTO clients (name, rate, phone, parent_phone, location)
+      INSERT INTO clients (name, rate, contact_info, billing_name, location)
       VALUES (?, ?, ?, ?, ?)
-    `).run(name, rate, phone ?? null, parent_phone ?? null, location);
+    `).run(name, rate, contact_info ?? null, billing_name ?? null, location);
 
-    res.status(201).json({ id: result.lastInsertRowid, name, rate, phone, parent_phone, location });
+    res.status(201).json({ id: result.lastInsertRowid, name, rate, contact_info, billing_name, location });
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Client already exists' });
     throw err;
@@ -183,8 +183,8 @@ router.post('/', (req, res) => {
 /**
  * PUT /api/clients/:client_id
  *
- * Replaces all editable fields on an existing client. All four fields must be
- * supplied; omitting phone/parent_phone sets them to NULL.
+ * Replaces all editable fields on an existing client. All fields must be
+ * supplied; omitting contact_info/billing_name sets them to NULL.
  *
  * Path params:
  *   client_id  {integer}  — The client's database ID.
@@ -192,33 +192,33 @@ router.post('/', (req, res) => {
  * Body:
  *   name          {string}       — Updated name. Required.
  *   rate          {number}       — Updated hourly rate. Required.
- *   phone         {string|null}  — Updated phone. Pass null to clear.
- *   parent_phone  {string|null}  — Updated parent phone. Pass null to clear.
+ *   contact_info  {string|null}  — Updated contact info. Pass null to clear.
+ *   billing_name  {string|null}  — Updated billing name. Pass null to clear.
  *   location      {string}       — Updated default session location. Optional, defaults to ''.
  *
  * Example request:
  *   PUT /api/clients/1
- *   { "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null, "location": "Home" }
+ *   { "name": "Alice", "rate": 160, "contact_info": "050-1111111", "billing_name": null, "location": "Home" }
  *
  * Example response (200):
- *   { "id": 1, "name": "Alice", "rate": 160, "phone": "050-1111111", "parent_phone": null, "location": "Home" }
+ *   { "id": 1, "name": "Alice", "rate": 160, "contact_info": "050-1111111", "billing_name": null, "location": "Home" }
  *
  * Errors:
  *   404  { "error": "Client not found" }
  *   409  { "error": "A client with that name already exists" }  — Duplicate name.
  */
 router.put('/:client_id', (req, res) => {
-  const { name, rate, phone, parent_phone, location = '' } = req.body;
+  const { name, rate, contact_info, billing_name, location = '' } = req.body;
 
   try {
     const result = db.prepare(`
-      UPDATE clients SET name = ?, rate = ?, phone = ?, parent_phone = ?, location = ?
+      UPDATE clients SET name = ?, rate = ?, contact_info = ?, billing_name = ?, location = ?
       WHERE id = ?
-    `).run(name, rate, phone ?? null, parent_phone ?? null, location, req.params.client_id);
+    `).run(name, rate, contact_info ?? null, billing_name ?? null, location, req.params.client_id);
 
     if (result.changes === 0) return res.status(404).json({ error: 'Client not found' });
 
-    const updated = db.prepare('SELECT id, name, rate, phone, parent_phone, location FROM clients WHERE id = ?').get(req.params.client_id);
+    const updated = db.prepare('SELECT id, name, rate, contact_info, billing_name, location FROM clients WHERE id = ?').get(req.params.client_id);
     res.json(updated);
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'A client with that name already exists' });
