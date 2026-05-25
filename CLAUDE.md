@@ -1,5 +1,29 @@
 # Scheduler — Project Instructions for Claude Code
 
+## Workflow Rules
+
+### At conversation start
+Read `ARCHITECTURE.md` before doing anything else. This gives you the current
+system overview and prevents stale assumptions.
+
+### When the user gives instructions
+Append the instruction to `INSTRUCTIONS.md` under the current date, as a
+brief bullet point.
+
+### After making changes
+Append an entry to `CHANGELOG.txt` with the format:
+```
+YYYY-MM-DD HH:MM
+  - <short description, one line per change, git-commit style>
+```
+
+### Before any git push
+Review `CHANGELOG.txt` for entries since the last push and update
+`ARCHITECTURE.md` to reflect any structural changes (new routes, schema
+changes, new components, removed features, etc.).
+
+---
+
 ## Documentation Standard
 
 All source files must follow the documentation standard established in

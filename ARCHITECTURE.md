@@ -15,6 +15,7 @@ This document describes the final implemented architecture of the Tutoring Sched
 | **Backend** | Node.js 22 + Express 4 | Minimal server for a personal tool; Node 22 ships `node:sqlite` natively |
 | **Database** | SQLite via `node:sqlite` (built-in, no ORM) | Zero-dependency persistence; personal scale makes SQLite more than sufficient |
 | **Auth** | JWT (`jsonwebtoken`) | Stateless; a single shared password is enough for a solo-user app |
+| **PDF generation** | `pdfkit` | Streams invoice PDFs directly from Express; Rubik font embedded for Hebrew + Latin + ₪ glyph support |
 | **Dev tooling** | `concurrently` + `nodemon` | Single `npm run dev` starts both services; nodemon restarts on server changes |
 | **Hosting** | Railway (production) | Answered the PRD open question about hosting; `DB_PATH` env var makes the database path configurable for the deployment environment |
 
@@ -81,13 +82,21 @@ Scheduler/
     ├── middleware/
     │   └── requireAuth.js       # JWT verification applied to all /api/* except /api/auth
     │
+    ├── config/
+    │   └── business.json        # Business details (name, number, tax rate) used by pdf.js — gitignored
+    │
+    ├── fonts/
+    │   ├── Rubik-Regular.ttf    # Embedded in PDF invoices; covers Hebrew, Latin, ₪
+    │   └── Rubik-Bold.ttf
+    │
     ├── routes/
     │   ├── auth.js              # POST /api/auth/verify
     │   ├── clients.js           # CRUD for clients + derived stats
     │   ├── sessions.js          # CRUD for sessions + overlap check
     │   ├── payments.js          # CRUD for payments + summary/owed endpoints
     │   ├── events.js            # CRUD for calendar events; unique constraint on (date, time)
-    │   └── backup.js            # GET /api/backup — streams DB file as binary download
+    │   ├── backup.js            # GET /api/backup — streams DB file as binary download
+    │   └── pdf.js               # GET /api/pdf/invoice — streams a Hebrew RTL invoice PDF via pdfkit
     │
     └── db/
         ├── schema.sql           # CREATE TABLE IF NOT EXISTS — idempotent on startup
@@ -244,6 +253,12 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 |---|---|---|
 | `GET` | `/api/backup` | Streams the live SQLite database file as a binary download with a date-stamped filename (`scheduler-backup-YYYY-MM-DD.db`). Requires JWT. |
 
+### PDF
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all `Completed` sessions of a client within a date range. Query params: `client_id`, `from` (YYYY-MM-DD), `to` (YYYY-MM-DD). Invoice number is derived from the ID of the first session in the range, formatted as `3XXXX` (5 digits, leading zeros). Business details (name, tax %, etc.) read from `server/config/business.json`. |
+
 ### Static / SPA fallback
 
 In production, Express serves the React build from `client/build/` and sends `index.html` for all non-API routes, making the entire app a single deployable unit on one port.
@@ -351,3 +366,5 @@ In production, Express serves both the API and the compiled React frontend. Ther
 - **Day view summary row** — the Day view header shows projected income and total scheduled hours for the day side by side, separated by a vertical divider.
 - **`migrate_events.js`** — standalone migration script to create the `events` table and both partial unique indexes. Idempotent.
 - **`DurationInput` extracted as a shared component** — the H:MM segment duration input was originally inlined in `SessionModal`. It is now `DurationInput.js`, shared by both `SessionModal` and `EventModal`.
+- **PDF invoice generation** — `GET /api/pdf/invoice` streams a `pdfkit`-generated Hebrew RTL חשבון עסקה for a client's completed sessions over a date range. The Rubik font is embedded for full Hebrew + ₪ glyph support. Invoice number format: `3XXXX` (5 digits) based on the first session's DB ID. Business info lives in `server/config/business.json` (gitignored).
+- **`contact_info` / `billing_name` fields on clients** — replaced the earlier `phone` / `parent_phone` columns. `billing_name` overrides `name` on invoices; `contact_info` is a free-text field shown below the client name on the invoice.

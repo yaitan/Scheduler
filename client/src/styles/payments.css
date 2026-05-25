@@ -37,3 +37,51 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+.payments-invoice-error {
+  font-size: 13px;
+  color: #e57373;
+  padding: 4px 0;
+}
+
+/* ── Floating action menu (client row click) ──────────────────────── */
+
+/* Full-screen invisible layer — clicking it closes the menu */
+.action-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.action-menu {
+  position: fixed;
+  z-index: 100;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.action-menu-item {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.action-menu-item:last-child {
+  border-bottom: none;
+}
+
+.action-menu-item:hover {
+  background: var(--bg-secondary);
+}

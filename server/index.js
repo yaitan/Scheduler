@@ -13,6 +13,7 @@
  *      valid JWT.
  *   5. /api/clients, /api/sessions, /api/payments — protected API routes.
  *   6. GET /api/backup      — streams the SQLite file as a binary download.
+ *      /api/pdf             — PDF generation routes (invoice, etc.).
  *   7. express.static       — serves the compiled React app from client/build.
  *   8. Catch-all SPA route  — returns index.html for any non-API path so that
  *      React Router (client-side navigation) works on direct URL loads and
@@ -54,6 +55,7 @@ app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/events',   require('./routes/events'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/backup',   require('./routes/backup'));
+app.use('/api/pdf',      require('./routes/pdf'));
 
 // ── React client (production) ─────────────────────────────────────────────────
 

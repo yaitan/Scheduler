@@ -3,6 +3,12 @@ client/node_modules/
 server/node_modules/
 client/build/
 server/scheduler.db
+server/db/scheduler.db
+server/config/business.json
 .env
 CHANGELOG.txt
 migrate_railway.js
+deal_invoice-300009.pdf
+receipt-800016.pdf
+INSTRUCTIONS.md
+*.pdf
