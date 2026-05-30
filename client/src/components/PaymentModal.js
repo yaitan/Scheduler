@@ -40,9 +40,12 @@ import '../styles/datepicker-theme.css';
  *   onClose          {Function}             — Called to close the modal without saving.
  *   onSaved          {Function}             — Called after a successful create or update.
  *   onDeleted        {Function}             — Called after a successful delete.
- *   onCreateInvoice  {Function|undefined}   — When provided, a left-aligned "Create Invoice"
- *                                             button is shown. Called with the selected clientId
- *                                             (as a number) after the modal closes.
+ *   onCreateInvoice  {Function|undefined}   — When provided in new-payment mode, a left-aligned
+ *                                             "Create Invoice" button is shown. Called with the
+ *                                             selected clientId (as a number) after the modal closes.
+ *   onCreateReceipt  {Function|undefined}   — When provided in edit mode, a left-aligned "Create
+ *                                             Receipt" button is shown instead of "Create Invoice".
+ *                                             Called with { clientId, date } after the modal closes.
  *
  * States:
  *   clients        {Array}   — List of all clients fetched from GET /api/clients on mount,
@@ -57,7 +60,7 @@ import '../styles/datepicker-theme.css';
  *   confirmDelete  {boolean} — When true, renders the delete confirmation screen instead
  *                              of the main form.
  */
-function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSaved, onDeleted, onCreateInvoice }) {
+function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSaved, onDeleted, onCreateInvoice, onCreateReceipt }) {
   const isEdit = Boolean(payment);
 
   const [clients, setClients] = useState([]);
@@ -281,7 +284,7 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
 
           {error && <p className="form-api-error">{error}</p>}
 
-          {/* Spread layout when there is a left-side action (Delete or Create Invoice) */}
+          {/* Spread layout when there is a left-side action (Delete, Create Invoice, or Create Receipt) */}
           <div className={`modal-actions${(isEdit || onCreateInvoice) ? ' modal-actions--spread' : ''}`}>
             <div style={{ display: 'flex', gap: '8px' }}>
               {isEdit && (
@@ -289,7 +292,7 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
                   Delete
                 </button>
               )}
-              {onCreateInvoice && (
+              {!isEdit && onCreateInvoice && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -299,6 +302,18 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
                   }}
                 >
                   Create Invoice
+                </button>
+              )}
+              {isEdit && onCreateReceipt && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    onClose();
+                    onCreateReceipt({ clientId: clientId ? parseInt(clientId) : null, date: toDateStr(date) });
+                  }}
+                >
+                  Create Receipt
                 </button>
               )}
             </div>

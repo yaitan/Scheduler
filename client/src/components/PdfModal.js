@@ -1,21 +1,34 @@
 /**
- * InvoiceModal.js
+ * PdfModal.js
  *
- * Modal for configuring and downloading a PDF invoice for a client.
+ * Modal for configuring and downloading a PDF invoice or receipt for a client.
  *
- * The user selects a client, optionally edits the billing name, and sets a
- * date range. The modal queries the sessions count for the chosen parameters
- * so the user can confirm they are invoicing the right period before downloading.
- * Pressing "Download" streams the PDF via GET /api/pdf/invoice and triggers a
- * browser file download.
+ * Modes:
+ *   invoice  — Lets the user select a date range and downloads a PDF invoice
+ *              (GET /api/pdf/invoice) for all sessions in that period.
+ *              Shows a session count so the user can confirm the period before
+ *              downloading.
+ *   receipt  — Lets the user select a date range and downloads a PDF receipt
+ *              (GET /api/pdf/receipt) for all payments in that period.
+ *              Shows a payment count. "From" is typically pre-filled with the
+ *              payment date.
+ *
+ * Key flows:
+ *   1. Client list is fetched on mount to populate the dropdown and auto-fill
+ *      billing name for a pre-selected client.
+ *   2. A session or payment count is fetched whenever client/from/to change.
+ *   3. Pressing "Download" streams the PDF via the appropriate endpoint and
+ *      triggers a browser file download.
  *
  * API routes used:
  *   GET  /api/clients                                — Populate the client dropdown.
- *   GET  /api/sessions?client_id=&from=&to=          — Count sessions in the range.
- *   GET  /api/pdf/invoice?client_id=&from=&to=...    — Stream the PDF for download.
+ *   GET  /api/sessions/count?client_id=&from=&to=    — Count sessions (invoice mode).
+ *   GET  /api/payments/count?client_id=&from=&to=    — Count payments (receipt mode).
+ *   GET  /api/pdf/invoice?client_id=&from=&to=...    — Stream the invoice PDF.
+ *   GET  /api/pdf/receipt?client_id=&from=&to=...    — Stream the receipt PDF.
  *
  * Exports:
- *   InvoiceModal  — The modal component.
+ *   PdfModal  — The modal component.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -27,29 +40,32 @@ import { apiFetch } from '../utils/api';
 import { toDateStr } from '../utils/dateUtils';
 
 /**
- * InvoiceModal
+ * PdfModal
  *
  * Props:
- *   initialClientId  {number|null}  — Pre-select this client when the modal opens.
- *   initialFrom      {string|null}  — Pre-fill the "From" date (YYYY-MM-DD).
- *   initialTo        {string|null}  — Pre-fill the "To" date (YYYY-MM-DD).
- *   onClose          {Function}     — Called to close the modal.
+ *   mode             {'invoice'|'receipt'}  — Controls the title, endpoint, and whether
+ *                                             session count is shown.
+ *   initialClientId  {number|null}          — Pre-select this client when the modal opens.
+ *   initialFrom      {string|null}          — Pre-fill the "From" date (YYYY-MM-DD).
+ *   initialTo        {string|null}          — Pre-fill the "To" date (YYYY-MM-DD).
+ *   onClose          {Function}             — Called to close the modal.
  *
  * States:
  *   clients       {Array}        — All clients from GET /api/clients; populates dropdown.
  *   clientId      {string}       — Selected client ID as a string.
- *   billingName   {string}       — Billing name to print on the invoice. Auto-filled
+ *   billingName   {string}       — Billing name to print on the document. Auto-filled
  *                                  from the client's stored billing_name (or name).
  *                                  The user can override it before downloading.
- *   from          {Date|null}    — Start of the billing period.
- *   to            {Date|null}    — End of the billing period.
- *   sessionCount  {number|null}  — Sessions found in the range; null while loading
- *                                  or when not all fields are filled.
+ *   from          {Date|null}    — Start of the period.
+ *   to            {Date|null}    — End of the period.
+ *   itemCount     {number|null}  — Sessions (invoice mode) or payments (receipt mode) found
+ *                                  in the selected range; null while loading or when not all
+ *                                  fields are filled.
  *   countLoading  {boolean}      — True while the session count fetch is in-flight.
  *   downloading   {boolean}      — True while the PDF request is in-flight.
  *   error         {string}       — Error message shown below the form.
  */
-function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
+function PdfModal({ mode, initialClientId, initialFrom, initialTo, onClose }) {
   const [clients, setClients]           = useState([]);
   const [clientId, setClientId]         = useState(initialClientId != null ? String(initialClientId) : '');
   const [billingName, setBillingName]   = useState('');
@@ -59,7 +75,7 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
   const [to, setTo]                     = useState(
     initialTo ? new Date(initialTo + 'T00:00:00') : new Date()
   );
-  const [sessionCount, setSessionCount] = useState(null);
+  const [itemCount, setItemCount]   = useState(null);
   const [countLoading, setCountLoading] = useState(false);
   const [downloading, setDownloading]   = useState(false);
   const [error, setError]               = useState('');
@@ -94,31 +110,33 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
   }, [clientId, clients]);
 
   /**
-   * GET /api/sessions?client_id=&from=&to=
+   * GET /api/sessions/count?client_id=&from=&to=  (invoice mode)
+   * GET /api/payments/count?client_id=&from=&to=  (receipt mode)
    *
-   * Re-runs whenever client, from, or to change. Counts the sessions that fall
-   * in the selected range so the user knows what will be invoiced before they
-   * commit to downloading.
+   * Re-runs whenever client, from, or to change. Fetches only the count from the
+   * server so the full list is not transferred just to measure its length.
    */
   const fetchCount = useCallback(() => {
-    if (!clientId || !from || !to) { setSessionCount(null); return; }
+    if (!clientId || !from || !to) { setItemCount(null); return; }
     setCountLoading(true);
     const params = new URLSearchParams({
       client_id: clientId,
       from:      toDateStr(from),
       to:        toDateStr(to),
     });
-    apiFetch(`/api/sessions?${params}`)
+    const endpoint = mode === 'invoice' ? '/api/sessions/count' : '/api/payments/count';
+    apiFetch(`${endpoint}?${params}`)
       .then(r => r.json())
-      .then(data => setSessionCount(Array.isArray(data) ? data.length : null))
-      .catch(() => setSessionCount(null))
+      .then(data => setItemCount(typeof data.count === 'number' ? data.count : null))
+      .catch(() => setItemCount(null))
       .finally(() => setCountLoading(false));
-  }, [clientId, from, to]);
+  }, [mode, clientId, from, to]);
 
   useEffect(() => { fetchCount(); }, [fetchCount]);
 
   /**
-   * GET /api/pdf/invoice
+   * GET /api/pdf/invoice  (invoice mode)
+   * GET /api/pdf/receipt  (receipt mode)
    *
    * Requests the PDF from the server and triggers a browser file download via
    * a temporary object URL. apiFetch is used (rather than a bare anchor tag)
@@ -136,17 +154,19 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
       to:        toDateStr(to),
     });
     if (billingName) params.set('billing_name', billingName);
+    const endpoint   = mode === 'invoice' ? '/api/pdf/invoice' : '/api/pdf/receipt';
+    const errorLabel = mode === 'invoice' ? 'invoice'          : 'receipt';
     try {
-      const res = await apiFetch(`/api/pdf/invoice?${params}`);
+      const res = await apiFetch(`${endpoint}?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error || 'Failed to generate invoice.');
+        setError(body.error || `Failed to generate ${errorLabel}.`);
         return;
       }
       // Derive the filename from Content-Disposition, fall back to a safe default.
       const disposition = res.headers.get('Content-Disposition') || '';
       const match       = disposition.match(/filename="?([^";\s]+)"?/);
-      const filename    = match ? match[1] : 'invoice.pdf';
+      const filename    = match ? match[1] : `${errorLabel}.pdf`;
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -156,11 +176,13 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
       URL.revokeObjectURL(url);
       onClose();
     } catch {
-      setError('Failed to generate invoice. Check your connection and try again.');
+      setError(`Failed to generate ${errorLabel}. Check your connection and try again.`);
     } finally {
       setDownloading(false);
     }
   }
+
+  const title = mode === 'invoice' ? 'Create Invoice' : 'Create Receipt';
 
   // ─── Main form ───────────────────────────────────────────────────────────────
   return (
@@ -169,7 +191,7 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
           the user clicks inside the modal itself. */}
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Create Invoice</span>
+          <span className="modal-title">{title}</span>
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
@@ -233,14 +255,16 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
             />
           </div>
 
-          {/* Session count — shown once all three required fields are filled */}
+          {/* Item count — shown once all three required fields are filled */}
           {clientId && from && to && (
             <p className="invoice-session-count">
               {countLoading
-                ? 'Counting sessions…'
-                : sessionCount === null
+                ? `Counting ${mode === 'invoice' ? 'sessions' : 'payments'}…`
+                : itemCount === null
                   ? ''
-                  : `${sessionCount} session${sessionCount !== 1 ? 's' : ''} found`}
+                  : mode === 'invoice'
+                    ? `${itemCount} session${itemCount !== 1 ? 's' : ''} found`
+                    : `${itemCount} payment${itemCount !== 1 ? 's' : ''} found`}
             </p>
           )}
 
@@ -268,4 +292,4 @@ function InvoiceModal({ initialClientId, initialFrom, initialTo, onClose }) {
   );
 }
 
-export default InvoiceModal;
+export default PdfModal;

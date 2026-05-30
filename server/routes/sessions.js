@@ -11,6 +11,7 @@
  *
  * Endpoints:
  *   GET     /api/sessions               — All sessions, with optional filters.
+ *   GET     /api/sessions/count         — Count of sessions for a client in a date range.
  *   GET     /api/sessions/:session_id   — Single session by ID.
  *   POST    /api/sessions               — Create a new session.
  *   PUT     /api/sessions/:session_id   — Update an existing session.
@@ -138,6 +139,41 @@ router.get('/', (req, res) => {
 
   sql += ' ORDER BY s.date, s.time';
   res.json(db.prepare(sql).all(...params));
+});
+
+/**
+ * GET /api/sessions/count
+ *
+ * Returns the number of sessions for a client within a date range.
+ * Used by PdfModal to show how many sessions will appear on an invoice
+ * before the user downloads it.
+ *
+ * Query params:
+ *   client_id  {integer}  — Client's database ID. Required.
+ *   from       {string}   — Start date (YYYY-MM-DD), inclusive. Required.
+ *   to         {string}   — End date (YYYY-MM-DD), inclusive. Required.
+ *
+ * Example request:
+ *   GET /api/sessions/count?client_id=1&from=2025-01-01&to=2025-03-31
+ *
+ * Example response (200):
+ *   { "count": 12 }
+ *
+ * Errors:
+ *   400  { "error": "client_id, from, and to are required" }
+ */
+router.get('/count', (req, res) => {
+  const { client_id, from, to } = req.query;
+  if (!client_id || !from || !to)
+    return res.status(400).json({ error: 'client_id, from, and to are required' });
+
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM sessions
+    WHERE client_id = ? AND date >= ? AND date <= ?
+  `).get(client_id, from, to);
+
+  res.json({ count: row.count });
 });
 
 /**

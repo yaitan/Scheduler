@@ -28,9 +28,11 @@
  * Endpoints:
  *   GET  /api/pdf/invoice  — Stream a PDF invoice for a client's completed
  *                            sessions between two dates.
+ *   GET  /api/pdf/receipt  — Stream a PDF receipt for a client's payments
+ *                            between two dates.
  *
  * API routes used:
- *   (internal)  SELECT on clients + sessions tables via shared db instance
+ *   (internal)  SELECT on clients + sessions + payments tables via shared db instance
  */
 
 const path        = require('path');
@@ -60,6 +62,23 @@ const COL = {
   duration: { x: 310, w: 75  },  // שעות
   rate:     { x: 160, w: 150 },  // מחיר לשעה
   amount:   { x: 50,  w: 110 },  // סה"כ    — leftmost
+};
+
+// Translations for payment method values stored in the DB.
+const METHOD_LABELS = {
+  PayBox:   'פייבוקס',
+  Bit:      'ביט',
+  Transfer: 'העברה בנקאית',
+  Cash:     'מזומן',
+  Other:    'אחר',
+};
+
+// Receipt table columns in RTL order (rightmost = first in reading direction).
+const RCOL = {
+  date:    { x: 470, w: 75  },  // DATE           — rightmost
+  method:  { x: 275, w: 190 },  // PAYMENT METHOD
+  details: { x: 120, w: 150 },  // DETAILS (receipt_number)
+  amount:  { x: 50,  w: 65  },  // AMOUNT         — leftmost
 };
 
 const ROW_H       = 22;
@@ -128,18 +147,39 @@ function drawTableHeader(doc, y) {
   doc.text('תאריך',     COL.date.x,     ty, { width: COL.date.w,     align: 'center' });
   doc.text('זמן',       COL.time.x,     ty, { width: COL.time.w,     align: 'center' });
   doc.text('שעות',      COL.duration.x, ty, { width: COL.duration.w, align: 'center' });
-  doc.text(`${reverseWords('מחיר לשעה')} `, COL.rate.x,     ty, { width: COL.rate.w,     align: 'center' });
+  doc.text(reverseWords('מחיר לשעה'), COL.rate.x,     ty, { width: COL.rate.w,     align: 'center' });
   doc.text('סה"כ',      COL.amount.x,   ty, { width: COL.amount.w,   align: 'center' });
   return y + ROW_H;
 }
 
 /**
- * Reverses the order of words in a space-separated string.
+ * Draws the RTL receipt table header row. Returns y of the first data row.
+ * @param {PDFDocument} doc
+ * @param {number}      y
+ * @returns {number}
+ */
+function drawReceiptTableHeader(doc, y) {
+  doc.rect(LEFT, y, WIDTH, ROW_H).fill('#1a2744');
+  doc.fillColor('#ffffff').fontSize(9).font('Rubik-Bold');
+  const ty = y + 7;
+  doc.text(reverseWords('אמצעי תשלום'), RCOL.method.x,  ty, { width: RCOL.method.w,  align: 'center' });
+  doc.text('פרטים',        RCOL.details.x, ty, { width: RCOL.details.w, align: 'center' });
+  doc.text('תאריך',           RCOL.date.x,    ty, { width: RCOL.date.w,    align: 'center' });
+  doc.text('סכום',         RCOL.amount.x,  ty, { width: RCOL.amount.w,  align: 'center' });
+  return y + ROW_H;
+}
+
+/**
+ * Reverses word order for Hebrew strings; returns other strings unchanged.
+ * Language is determined by the first letter found in the string.
+ * Adds a trailing space for Hebrew to render properly.
  * @param {string} text
  * @returns {string}
  */
 function reverseWords(text) {
-  return text.split(' ').reverse().join(' ');
+  const first = text.match(/\p{L}/u);
+  if (!first || /[A-Za-z]/.test(first[0])) return text;
+  return text.split(' ').reverse().join(' ') + ' ';
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -218,7 +258,7 @@ router.get('/invoice', (req, res) => {
   // ─── Title ─────────────────────────────────────────────────────────────────
 
   doc.fontSize(28).font('Rubik-Bold').fillColor('#000000')
-    .text(`${reverseWords('חשבון עסקה')} `, LEFT, y, { width: WIDTH, align: 'right' });
+    .text(reverseWords('חשבון עסקה'), LEFT, y, { width: WIDTH, align: 'right' });
   y += 36;
 
   doc.fontSize(10).font('Rubik').fillColor('#444444')
@@ -252,7 +292,7 @@ router.get('/invoice', (req, res) => {
 
   // Client — left column (same top y)
   doc.fontSize(10).font('Rubik-Bold').fillColor('#000000')
-    .text(`${clientName} עבור:`, L_COL_X, y, { width: L_COL_W, align: 'right' });
+    .text(`${reverseWords(clientName)}    עבור:`, L_COL_X, y, { width: L_COL_W, align: 'right' });
 
   y += 80;
 
@@ -293,7 +333,7 @@ router.get('/invoice', (req, res) => {
   doc.fontSize(10).font('Rubik').fillColor('#000000');
 
   // סה"כ פטור ממע"מ
-  doc.text(`${reverseWords('סה"כ פטור ממע"מ')} `, TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
+  doc.text(reverseWords('סה"כ פטור ממע"מ'), TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
   doc.text(formatNIS(subtotal),   TOT_AMT_X,   y, { width: TOT_AMT_W,   align: 'right' });
   y += 20;
 
@@ -306,8 +346,169 @@ router.get('/invoice', (req, res) => {
   const totRowW = TOT_LABEL_X + TOT_LABEL_W - LEFT+15;
   doc.rect(LEFT, y, totRowW, 26).fill('#ebebeb');
   doc.fontSize(11).font('Rubik-Bold').fillColor('#000000')
-    .text(`${reverseWords('סה"כ לתשלום')} `, TOT_LABEL_X, y + 7, { width: TOT_LABEL_W, align: 'right' });
+    .text(reverseWords('סה"כ לתשלום'), TOT_LABEL_X, y + 7, { width: TOT_LABEL_W, align: 'right' });
   doc.text(formatNIS(total), TOT_AMT_X, y + 7, { width: TOT_AMT_W, align: 'right' });
+
+  doc.end();
+});
+
+/**
+ * GET /api/pdf/receipt
+ *
+ * Generates and streams a PDF receipt for all payments recorded against
+ * the given client within the specified date range.
+ * Withholding tax (ניכוי מס במקור) is read from business.withholding_tax;
+ * the final totals line shows the gross amount before withholding was deducted.
+ *
+ * Query params:
+ *   client_id     {integer}  — Client's database ID. Required.
+ *   from          {string}   — Start date (YYYY-MM-DD), inclusive. Required.
+ *   to            {string}   — End date (YYYY-MM-DD), inclusive. Required.
+ *   billing_name  {string}   — Override the client's stored billing name.
+ *                              Optional; falls back to client.billing_name
+ *                              then client.name.
+ *
+ * Example request:
+ *   GET /api/pdf/receipt?client_id=1&from=2025-01-01&to=2025-03-31
+ *
+ * Example response (200):
+ *   Binary PDF stream — Content-Type: application/pdf
+ *
+ * Errors:
+ *   400  { "error": "client_id, from, and to are required" }
+ *   404  { "error": "Client not found" }
+ *   404  { "error": "No payments found for this client in the given date range" }
+ */
+router.get('/receipt', (req, res) => {
+  const { client_id, from, to, billing_name } = req.query;
+
+  if (!client_id || !from || !to)
+    return res.status(400).json({ error: 'client_id, from, and to are required' });
+
+  const client = db.prepare(`
+    SELECT id, name, billing_name
+    FROM clients WHERE id = ?
+  `).get(client_id);
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+
+  const payments = db.prepare(`
+    SELECT id, date, amount, method, receipt_number
+    FROM payments
+    WHERE client_id = ?
+      AND date >= ? AND date <= ?
+    ORDER BY date
+  `).all(client_id, from, to);
+
+  if (payments.length === 0)
+    return res.status(404).json({ error: 'No payments found for this client in the given date range' });
+
+  const withholdingRate = business.withholding_tax || 0;
+  const total           = payments.reduce((sum, p) => sum + p.amount, 0);
+  const withholding     = total * withholdingRate / 100;
+  const preWithholding  = total + withholding;
+  const today           = new Date().toISOString().slice(0, 10);
+  const clientName      = billing_name || client.billing_name || client.name;
+  const receipt_number  = `8${String(payments[0].id).padStart(4, '0')}-${payments.length}`;
+
+  // ─── Build PDF ─────────────────────────────────────────────────────────────
+
+  const doc = new PDFDocument({ margin: LEFT, size: 'A4' });
+  doc.registerFont('Rubik',      FONT_REGULAR);
+  doc.registerFont('Rubik-Bold', FONT_BOLD);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="receipt-${receipt_number}.pdf"`);
+  doc.pipe(res);
+
+  let y = LEFT;
+
+  // ─── Title ─────────────────────────────────────────────────────────────────
+
+  doc.fontSize(28).font('Rubik-Bold').fillColor('#000000')
+    .text('קבלה', LEFT, y, { width: WIDTH, align: 'right' });
+  y += 36;
+
+  doc.fontSize(10).font('Rubik').fillColor('#444444')
+    .text(`${receipt_number} מספר:`, LEFT, y, { width: WIDTH, align: 'right' });
+  y += 16;
+  doc.text(`${formatDate(today)} תאריך:`, LEFT, y, { width: WIDTH, align: 'right' });
+  y += 22;
+
+  // ─── Divider ───────────────────────────────────────────────────────────────
+
+  rule(doc, y);
+  y += 18;
+
+  // ─── Info block: FROM (right column) | FOR (left column) ──────────────────
+
+  const MID     = LEFT + Math.floor(WIDTH / 2);
+  const R_COL_X = MID + 8;
+  const R_COL_W = RIGHT - R_COL_X;
+  const L_COL_X = LEFT;
+  const L_COL_W = MID - LEFT - 8;
+
+  // Business — right column
+  doc.fontSize(10).font('Rubik-Bold').fillColor('#000000')
+    .text(`${reverseWords(business.nameHe)} מאת: `, R_COL_X, y, { width: R_COL_W, align: 'right' });
+  doc.fontSize(10).font('Rubik').fillColor('#333333')
+    .text(`${business.businessNumber} ע.פ:`, R_COL_X, y + 18, { width: R_COL_W, align: 'right' });
+  doc.text(`${business.email} אימייל:`,       R_COL_X, y + 36, { width: R_COL_W, align: 'right' });
+  doc.text(`${business.phone} טלפון:`,       R_COL_X, y + 54, { width: R_COL_W, align: 'right' });
+
+  // Client — left column (same top y)
+  doc.fontSize(10).font('Rubik-Bold').fillColor('#000000')
+    .text(`${reverseWords(clientName)}    עבור:`, L_COL_X, y, { width: L_COL_W, align: 'right' });
+
+  y += 80;
+
+  // ─── Divider ───────────────────────────────────────────────────────────────
+
+  rule(doc, y);
+  y += 14;
+
+  // ─── Payments table ────────────────────────────────────────────────────────
+
+  let rowY = drawReceiptTableHeader(doc, y);
+
+  payments.forEach((p, i) => {
+    if (rowY + ROW_H > PAGE_BOTTOM) {
+      doc.addPage();
+      rowY = drawReceiptTableHeader(doc, LEFT);
+    }
+    const bg = i % 2 === 0 ? '#f5f7fa' : '#ffffff';
+
+    doc.rect(LEFT, rowY, WIDTH, ROW_H).fill(bg);
+    doc.fillColor('#000000').fontSize(9).font('Rubik');
+    const ty = rowY + 7;
+    doc.text(reverseWords(METHOD_LABELS[p.method] ?? p.method), RCOL.method.x, ty, { width: RCOL.method.w, align: 'center' });
+    doc.text(p.receipt_number || '', RCOL.details.x, ty, { width: RCOL.details.w, align: 'center' });
+    doc.text(formatDate(p.date),    RCOL.date.x,    ty, { width: RCOL.date.w,    align: 'center' });
+    doc.text(formatNIS(p.amount),   RCOL.amount.x,  ty, { width: RCOL.amount.w,  align: 'center' });
+    rowY += ROW_H;
+  });
+
+  // Bottom border of table
+  doc.moveTo(LEFT, rowY).lineTo(RIGHT, rowY).strokeColor('#cccccc').lineWidth(0.5).stroke();
+  y = rowY + 18;
+
+  // ─── Totals ────────────────────────────────────────────────────────────────
+
+  doc.fontSize(10).font('Rubik').fillColor('#000000');
+
+  doc.text('סה"כ ',          TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
+  doc.text(formatNIS(total), TOT_AMT_X,   y, { width: TOT_AMT_W,   align: 'right' });
+  y += 20;
+
+  doc.text(reverseWords('ניכוי מס במקור'),       TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
+  doc.text(formatNIS(withholding),  TOT_AMT_X,   y, { width: TOT_AMT_W,   align: 'right' });
+  y += 16;
+
+  // Highlighted final total row
+  const totRowW = TOT_LABEL_X + TOT_LABEL_W - LEFT + 15;
+  doc.rect(LEFT, y, totRowW, 26).fill('#ebebeb');
+  doc.fontSize(11).font('Rubik-Bold').fillColor('#000000')
+    .text(reverseWords('סה"כ לפני ניכוי מס במקור'), TOT_LABEL_X, y + 7, { width: TOT_LABEL_W, align: 'right' });
+  doc.text(formatNIS(preWithholding), TOT_AMT_X, y + 7, { width: TOT_AMT_W, align: 'right' });
 
   doc.end();
 });

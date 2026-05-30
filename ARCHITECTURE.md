@@ -50,7 +50,7 @@ Scheduler/
 │       │   ├── PaymentModal.js       # Unified new + edit payment modal
 │       │   ├── ClientModal.js        # Unified new + edit client modal
 │       │   ├── EventModal.js         # Unified new + edit event modal
-│       │   ├── InvoiceModal.js       # Invoice config modal: client, billing name, date range, session count, PDF download
+│       │   ├── PdfModal.js           # PDF config modal (invoice + receipt modes): client, billing name, date range, item count, PDF download
 │       │   ├── DurationInput.js      # Shared H:MM segment input (Session/EventModal)
 │       │   ├── LocationCombobox.js   # Shared location combobox (Session/ClientModal)
 │       │   ├── ConfirmDeleteModal.js # Reusable delete-confirmation overlay
@@ -222,6 +222,7 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/sessions` | All sessions; optional `?month=YYYY-MM`, `?year=YYYY`, `?client=name`, `?client_id=N`, `?from=YYYY-MM-DD`, `?to=YYYY-MM-DD`. Triggers `autoCompleteSessions`. |
+| `GET` | `/api/sessions/count` | Count of sessions for a client in a date range. Params: `client_id`, `from`, `to`. Returns `{ count }`. |
 | `GET` | `/api/sessions/:session_id` | Single session by integer ID |
 | `POST` | `/api/sessions` | Create session; `client_id` and `rate` required; `location` optional; runs overlap check, returns `409` on conflict |
 | `PUT` | `/api/sessions/:session_id` | Update session; re-runs overlap check excluding self; client and location are editable |
@@ -232,6 +233,7 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/payments` | All payments; optional `?client=name&from=YYYY-MM-DD` |
+| `GET` | `/api/payments/count` | Count of payments for a client in a date range. Params: `client_id`, `from`, `to`. Returns `{ count }`. |
 | `GET` | `/api/payments/owed` | Clients with positive balance, with earliest unpaid session and minutes owed. Used by the Payments view top panel. |
 | `GET` | `/api/payments/summary` | Per-client earned/paid/balance totals |
 | `POST` | `/api/payments` | Log a payment; `client_id` required |
@@ -258,7 +260,8 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all sessions of a client within a date range. Query params: `client_id`, `from` (YYYY-MM-DD), `to` (YYYY-MM-DD), optional `billing_name` (overrides stored billing_name on the invoice). Invoice number derived from first session ID, formatted as `3XXXX-N`. Business details read from `server/config/business.json` (gitignored). |
+| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all sessions of a client within a date range. Query params: `client_id`, `from`, `to`, optional `billing_name`. Invoice number format: `3XXXX-N`. Business details from `server/config/business.json` (gitignored). |
+| `GET` | `/api/pdf/receipt` | Generates and streams a Hebrew RTL receipt PDF (קבלה) for all payments of a client within a date range. Query params: `client_id`, `from`, `to`, optional `billing_name`. Receipt number format: `8XXXX-N`. Includes payment method (translated via `METHOD_LABELS`), details, date, amount, and a withholding-tax totals block. |
 
 ### Static / SPA fallback
 
@@ -343,7 +346,7 @@ In production, Express serves both the API and the compiled React frontend. Ther
 | **Tutoring-related events** (test days, year start/end) | Implemented | Full event CRUD added: `events` table, `/api/events` route, `EventModal` UI. Events appear as amber pills in all three calendar views (timed events on the time grid, all-day events as header pills). |
 | **Cancelled session reasons** | Not implemented | Listed as "Nice to Have" in PRD §5.2. `Cancelled` status exists but no reason field. |
 | **Multi-user login (wife's access)** | Not implemented | Explicitly deferred to v2 in PRD §5.3 and §8. Single-password auth is the v1 design. |
-| **Create receipts / payment requests** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
+| **Create receipts / payment requests** | Implemented | `GET /api/pdf/receipt` streams a Hebrew RTL receipt PDF for a client's payments in a date range. Accessible via "Create Receipt" in the edit-payment modal (opens `PdfModal` in receipt mode, pre-filled with the payment date). |
 | **Per-session rate override history** | Partially implemented | Each session now stores `rate` at booking time (`sessions.rate`), so billing is accurate even after a client's default rate changes. A full audit history of rate changes is not implemented. |
 | **Monthly report with cancellation analysis** | Not implemented | Explicitly deferred to v2 in PRD §5.3. |
 | **Day View as overlay over current view** | Implemented as specified | PRD §6 described it as an "enlarged overlay/modal" — this is what was built. |
@@ -367,5 +370,5 @@ In production, Express serves both the API and the compiled React frontend. Ther
 - **Day view summary row** — the Day view header shows projected income and total scheduled hours for the day side by side, separated by a vertical divider.
 - **`migrate_events.js`** — standalone migration script to create the `events` table and both partial unique indexes. Idempotent.
 - **`DurationInput` extracted as a shared component** — the H:MM segment duration input was originally inlined in `SessionModal`. It is now `DurationInput.js`, shared by both `SessionModal` and `EventModal`.
-- **PDF invoice generation** — `GET /api/pdf/invoice` streams a `pdfkit`-generated Hebrew RTL חשבון עסקה for a client's completed sessions over a date range. The Rubik font is embedded for full Hebrew + ₪ glyph support. Invoice number format: `3XXXX` (5 digits) based on the first session's DB ID. Business info lives in `server/config/business.json` (gitignored).
+- **PDF invoice and receipt generation** — `GET /api/pdf/invoice` and `GET /api/pdf/receipt` stream `pdfkit`-generated Hebrew RTL PDFs for a client's sessions or payments over a date range. Both are accessible via `PdfModal` (renamed from `InvoiceModal`), which operates in `invoice` or `receipt` mode and shows a live session/payment count before download. The Rubik font is embedded for full Hebrew + ₪ glyph support. Business info (including `withholding_tax`) lives in `server/config/business.json` (gitignored).
 - **`contact_info` / `billing_name` fields on clients** — replaced the earlier `phone` / `parent_phone` columns. `billing_name` overrides `name` on invoices; `contact_info` is a free-text field shown below the client name on the invoice.

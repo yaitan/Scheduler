@@ -9,12 +9,13 @@
  * where session revenue = duration (minutes) / 60 * rate.
  *
  * Endpoints:
- *   GET  /api/payments              — All payments, with optional filters.
- *   GET  /api/payments/owed         — Clients with a positive balance, plus debt details.
- *   GET  /api/payments/summary      — Balance summary for every client.
- *   POST /api/payments              — Record a new payment.
- *   PUT  /api/payments/:payment_id  — Update an existing payment.
- *   DELETE /api/payments/:payment_id — Delete a payment.
+ *   GET    /api/payments               — All payments, with optional filters.
+ *   GET    /api/payments/count         — Count of payments for a client in a date range.
+ *   GET    /api/payments/owed          — Clients with a positive balance, plus debt details.
+ *   GET    /api/payments/summary       — Balance summary for every client.
+ *   POST   /api/payments               — Record a new payment.
+ *   PUT    /api/payments/:payment_id   — Update an existing payment.
+ *   DELETE /api/payments/:payment_id   — Delete a payment.
  */
 
 const { Router } = require('express');
@@ -192,6 +193,41 @@ router.get('/summary', (_req, res) => {
   `).all();
 
   res.json(rows);
+});
+
+/**
+ * GET /api/payments/count
+ *
+ * Returns the number of payments for a client within a date range.
+ * Used by PdfModal to show how many payments will appear on a receipt
+ * before the user downloads it.
+ *
+ * Query params:
+ *   client_id  {integer}  — Client's database ID. Required.
+ *   from       {string}   — Start date (YYYY-MM-DD), inclusive. Required.
+ *   to         {string}   — End date (YYYY-MM-DD), inclusive. Required.
+ *
+ * Example request:
+ *   GET /api/payments/count?client_id=1&from=2025-01-01&to=2025-03-31
+ *
+ * Example response (200):
+ *   { "count": 3 }
+ *
+ * Errors:
+ *   400  { "error": "client_id, from, and to are required" }
+ */
+router.get('/count', (req, res) => {
+  const { client_id, from, to } = req.query;
+  if (!client_id || !from || !to)
+    return res.status(400).json({ error: 'client_id, from, and to are required' });
+
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM payments
+    WHERE client_id = ? AND date >= ? AND date <= ?
+  `).get(client_id, from, to);
+
+  res.json({ count: row.count });
 });
 
 /**

@@ -7,9 +7,11 @@
  *   1. Balance owed table — one row per client who owes money. Clicking a row
  *      opens PaymentModal pre-filled with the client and their outstanding balance.
  *      PaymentModal exposes a left-aligned "Create Invoice" button that closes it
- *      and opens InvoiceModal with the same client pre-selected.
+ *      and opens PdfModal in invoice mode with the same client pre-selected.
  *   2. Recent payments table — all payments from two months ago through today,
  *      sorted by the server. Clicking a row opens PaymentModal in edit mode.
+ *      Edit mode exposes a "Create Receipt" button that opens PdfModal in receipt
+ *      mode pre-filled with the payment date.
  *
  * Both datasets are fetched in parallel on mount and on every refresh. The view
  * re-fetches when `refreshKey` is incremented, which happens after any modal save
@@ -23,7 +25,7 @@
 
 import React, { useState, useEffect } from 'react';
 import PaymentModal from '../components/PaymentModal';
-import InvoiceModal from '../components/InvoiceModal';
+import PdfModal from '../components/PdfModal';
 import '../styles/clients.css';
 import '../styles/payments.css';
 import { apiFetch } from '../utils/api';
@@ -44,8 +46,10 @@ import { fmtDuration, formatDate, twoMonthsAgoStart } from '../utils/dateUtils';
  *                               May carry { initialClientId, initialAmount } if opened from
  *                               a balance row, or {} if opened from the "+ New Payment" button.
  *   editPayment {object|null} — When non-null, PaymentModal opens in edit mode.
- *   invoice     {object|null} — When non-null, InvoiceModal opens. Carries
- *                               { clientId } passed from the PaymentModal button.
+ *   pdf         {object|null} — When non-null, PdfModal opens. Shape:
+ *                               { mode: 'invoice'|'receipt', clientId, from: string|null }.
+ *                               Populated by "Create Invoice" (new payment) or
+ *                               "Create Receipt" (edit payment) buttons.
  */
 function PaymentsView() {
   const [owed, setOwed]               = useState([]);
@@ -54,7 +58,7 @@ function PaymentsView() {
   const [refreshKey, setRefreshKey]   = useState(0);
   const [newPayment, setNewPayment]   = useState(null);
   const [editPayment, setEditPayment] = useState(null);
-  const [invoice, setInvoice]         = useState(null); // null | { clientId }
+  const [pdf, setPdf]                 = useState(null); // null | { mode, clientId, from }
 
   /**
    * GET /api/payments/owed
@@ -169,7 +173,7 @@ function PaymentsView() {
           onCreateInvoice={clientId => {
             setNewPayment(null);
             const owedRow = owed.find(r => r.client_id === clientId);
-            setInvoice({ clientId, from: owedRow?.earliest_unpaid?.date || null });
+            setPdf({ mode: 'invoice', clientId, from: owedRow?.earliest_unpaid?.date || null });
           }}
         />
       )}
@@ -181,20 +185,20 @@ function PaymentsView() {
           onClose={() => setEditPayment(null)}
           onSaved={refresh}
           onDeleted={refresh}
-          onCreateInvoice={clientId => {
+          onCreateReceipt={({ clientId, date }) => {
             setEditPayment(null);
-            const owedRow = owed.find(r => r.client_id === clientId);
-            setInvoice({ clientId, from: owedRow?.earliest_unpaid?.date || null });
+            setPdf({ mode: 'receipt', clientId, from: date });
           }}
         />
       )}
 
-      {/* Invoice modal — opened via "Create Invoice" inside PaymentModal */}
-      {invoice && (
-        <InvoiceModal
-          initialClientId={invoice.clientId}
-          initialFrom={invoice.from}
-          onClose={() => setInvoice(null)}
+      {/* PdfModal — opened via "Create Invoice" (new payment) or "Create Receipt" (edit payment) */}
+      {pdf && (
+        <PdfModal
+          mode={pdf.mode}
+          initialClientId={pdf.clientId}
+          initialFrom={pdf.from}
+          onClose={() => setPdf(null)}
         />
       )}
 
