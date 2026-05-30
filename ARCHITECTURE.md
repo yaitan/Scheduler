@@ -50,6 +50,7 @@ Scheduler/
 │       │   ├── PaymentModal.js       # Unified new + edit payment modal
 │       │   ├── ClientModal.js        # Unified new + edit client modal
 │       │   ├── EventModal.js         # Unified new + edit event modal
+│       │   ├── InvoiceModal.js       # Invoice config modal: client, billing name, date range, session count, PDF download
 │       │   ├── DurationInput.js      # Shared H:MM segment input (Session/EventModal)
 │       │   ├── LocationCombobox.js   # Shared location combobox (Session/ClientModal)
 │       │   ├── ConfirmDeleteModal.js # Reusable delete-confirmation overlay
@@ -220,7 +221,7 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/sessions` | All sessions; optional `?month=YYYY-MM`, `?year=YYYY`, `?client=name`. Triggers `autoCompleteSessions`. |
+| `GET` | `/api/sessions` | All sessions; optional `?month=YYYY-MM`, `?year=YYYY`, `?client=name`, `?client_id=N`, `?from=YYYY-MM-DD`, `?to=YYYY-MM-DD`. Triggers `autoCompleteSessions`. |
 | `GET` | `/api/sessions/:session_id` | Single session by integer ID |
 | `POST` | `/api/sessions` | Create session; `client_id` and `rate` required; `location` optional; runs overlap check, returns `409` on conflict |
 | `PUT` | `/api/sessions/:session_id` | Update session; re-runs overlap check excluding self; client and location are editable |
@@ -257,7 +258,7 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all `Completed` sessions of a client within a date range. Query params: `client_id`, `from` (YYYY-MM-DD), `to` (YYYY-MM-DD). Invoice number is derived from the ID of the first session in the range, formatted as `3XXXX` (5 digits, leading zeros). Business details (name, tax %, etc.) read from `server/config/business.json`. |
+| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all sessions of a client within a date range. Query params: `client_id`, `from` (YYYY-MM-DD), `to` (YYYY-MM-DD), optional `billing_name` (overrides stored billing_name on the invoice). Invoice number derived from first session ID, formatted as `3XXXX-N`. Business details read from `server/config/business.json` (gitignored). |
 
 ### Static / SPA fallback
 

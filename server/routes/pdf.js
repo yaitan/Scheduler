@@ -68,9 +68,9 @@ const PAGE_BOTTOM = 750;
 // Totals block sits in the left portion of the page (RTL end-of-reading).
 // Label is right-aligned in the label column; amount is right-aligned in the amount column.
 const TOT_AMT_X   = 50;
-const TOT_AMT_W   = 100;
-const TOT_LABEL_X = 150;
-const TOT_LABEL_W = 220;  // right edge at 370
+const TOT_AMT_W   = 75;
+const TOT_LABEL_X = 50;
+const TOT_LABEL_W = 200;  // right edge at 370
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -125,11 +125,11 @@ function drawTableHeader(doc, y) {
   doc.rect(LEFT, y, WIDTH, ROW_H).fill('#1a2744');
   doc.fillColor('#ffffff').fontSize(9).font('Rubik-Bold');
   const ty = y + 7;
-  doc.text('תאריך',     COL.date.x,     ty, { width: COL.date.w,     align: 'right' });
-  doc.text('זמן',       COL.time.x,     ty, { width: COL.time.w,     align: 'right' });
-  doc.text('שעות',      COL.duration.x, ty, { width: COL.duration.w, align: 'right' });
-  doc.text(`${reverseWords('מחיר לשעה')} `, COL.rate.x,     ty, { width: COL.rate.w,     align: 'right' });
-  doc.text('סה"כ',      COL.amount.x,   ty, { width: COL.amount.w,   align: 'right' });
+  doc.text('תאריך',     COL.date.x,     ty, { width: COL.date.w,     align: 'center' });
+  doc.text('זמן',       COL.time.x,     ty, { width: COL.time.w,     align: 'center' });
+  doc.text('שעות',      COL.duration.x, ty, { width: COL.duration.w, align: 'center' });
+  doc.text(`${reverseWords('מחיר לשעה')} `, COL.rate.x,     ty, { width: COL.rate.w,     align: 'center' });
+  doc.text('סה"כ',      COL.amount.x,   ty, { width: COL.amount.w,   align: 'center' });
   return y + ROW_H;
 }
 
@@ -151,24 +151,26 @@ function reverseWords(text) {
  * Completed sessions of the given client within the specified date range.
  *
  * Query params:
- *   client_id       {integer}  — Client's database ID. Required.
- *   from            {string}   — Start date (YYYY-MM-DD), inclusive. Required.
- *   to              {string}   — End date (YYYY-MM-DD), inclusive. Required.
- *   tax_rate        {number}   — Tax percentage (0–100). Optional, defaults to 0.
+ *   client_id     {integer}  — Client's database ID. Required.
+ *   from          {string}   — Start date (YYYY-MM-DD), inclusive. Required.
+ *   to            {string}   — End date (YYYY-MM-DD), inclusive. Required.
+ *   billing_name  {string}   — Override the client's stored billing name on the
+ *                              invoice. Optional; falls back to client.billing_name
+ *                              then client.name.
  *
  * Example request:
- *   GET /api/pdf/invoice?client_id=1&from=2025-01-01&to=2025-03-31&tax_rate=18
+ *   GET /api/pdf/invoice?client_id=1&from=2025-01-01&to=2025-03-31
  *
  * Example response (200):
  *   Binary PDF stream — Content-Type: application/pdf
  *
  * Errors:
- *   400  { "error": "client_id, from, to, and invoice_number are required" }
+ *   400  { "error": "client_id, from, and to are required" }
  *   404  { "error": "Client not found" }
  *   404  { "error": "No completed sessions found for this client in the given date range" }
  */
 router.get('/invoice', (req, res) => {
-  const { client_id, from, to } = req.query;
+  const { client_id, from, to, billing_name } = req.query;
 
   if (!client_id || !from || !to)
     return res.status(400).json({ error: 'client_id, from, and to are required' });
@@ -176,7 +178,7 @@ router.get('/invoice', (req, res) => {
   autoCompleteSessions();
 
   const client = db.prepare(`
-    SELECT id, name, billing_name, contact_info
+    SELECT id, name, billing_name
     FROM clients WHERE id = ?
   `).get(client_id);
   if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -184,7 +186,7 @@ router.get('/invoice', (req, res) => {
   const sessions = db.prepare(`
     SELECT id, date, time, duration, rate
     FROM sessions
-    WHERE client_id = ? AND status = 'Completed'
+    WHERE client_id = ?
       AND date >= ? AND date <= ?
     ORDER BY date, time
   `).all(client_id, from, to);
@@ -197,8 +199,8 @@ router.get('/invoice', (req, res) => {
   const taxAmount  = subtotal * taxPercent / 100;
   const total      = subtotal + taxAmount;
   const today      = new Date().toISOString().slice(0, 10);
-  const clientName = client.billing_name || client.name;
-  const invoice_number = `3${String(sessions[0].id).padStart(4, '0')}`;
+  const clientName = billing_name || client.billing_name || client.name;
+  const invoice_number = `3${String(sessions[0].id).padStart(4, '0')}-${sessions.length}`;
   // ─── Build PDF ─────────────────────────────────────────────────────────────
 
   const doc = new PDFDocument({ margin: LEFT, size: 'A4' });
@@ -243,16 +245,16 @@ router.get('/invoice', (req, res) => {
     .text(`${reverseWords(business.nameHe)} מאת: `, R_COL_X, y, { width: R_COL_W, align: 'right' });
   doc.fontSize(10).font('Rubik').fillColor('#333333')
     .text(`${business.businessNumber} ע.פ:`, R_COL_X, y + 18, { width: R_COL_W, align: 'right' });
+  doc.fontSize(10).font('Rubik').fillColor('#333333')
+    .text(`${business.email} אימייל:`, R_COL_X, y + 36, { width: R_COL_W, align: 'right' });
+  doc.fontSize(10).font('Rubik').fillColor('#333333')
+    .text(`${business.phone} טלפון:`, R_COL_X, y + 54, { width: R_COL_W, align: 'right' });
 
   // Client — left column (same top y)
   doc.fontSize(10).font('Rubik-Bold').fillColor('#000000')
     .text(`${clientName} עבור:`, L_COL_X, y, { width: L_COL_W, align: 'right' });
-  if (client.contact_info) {
-    doc.fontSize(9).font('Rubik').fillColor('#555555')
-      .text(client.contact_info, L_COL_X, y + 18, { width: L_COL_W, align: 'right' });
-  }
 
-  y += 44;
+  y += 80;
 
   // ─── Divider ───────────────────────────────────────────────────────────────
 
@@ -274,11 +276,11 @@ router.get('/invoice', (req, res) => {
     doc.rect(LEFT, rowY, WIDTH, ROW_H).fill(bg);
     doc.fillColor('#000000').fontSize(9).font('Rubik');
     const ty = rowY + 7;
-    doc.text(formatDate(s.date),         COL.date.x,     ty, { width: COL.date.w,     align: 'right' });
-    doc.text(s.time,                     COL.time.x,     ty, { width: COL.time.w,     align: 'right' });
-    doc.text(formatDuration(s.duration), COL.duration.x, ty, { width: COL.duration.w, align: 'right' });
-    doc.text(`₪${s.rate}`,               COL.rate.x,     ty, { width: COL.rate.w,     align: 'right' });
-    doc.text(formatNIS(amount),          COL.amount.x,   ty, { width: COL.amount.w,   align: 'right' });
+    doc.text(formatDate(s.date),         COL.date.x,     ty, { width: COL.date.w,     align: 'center' });
+    doc.text(s.time,                     COL.time.x,     ty, { width: COL.time.w,     align: 'center' });
+    doc.text(formatDuration(s.duration), COL.duration.x, ty, { width: COL.duration.w, align: 'center' });
+    doc.text(`₪${s.rate}`,               COL.rate.x,     ty, { width: COL.rate.w,     align: 'center' });
+    doc.text(formatNIS(amount),          COL.amount.x,   ty, { width: COL.amount.w,   align: 'center' });
     rowY += ROW_H;
   });
 
@@ -301,7 +303,7 @@ router.get('/invoice', (req, res) => {
   y += 16;
 
   // סה"כ לתשלום — highlighted
-  const totRowW = TOT_LABEL_X + TOT_LABEL_W - LEFT;
+  const totRowW = TOT_LABEL_X + TOT_LABEL_W - LEFT+15;
   doc.rect(LEFT, y, totRowW, 26).fill('#ebebeb');
   doc.fontSize(11).font('Rubik-Bold').fillColor('#000000')
     .text(`${reverseWords('סה"כ לתשלום')} `, TOT_LABEL_X, y + 7, { width: TOT_LABEL_W, align: 'right' });

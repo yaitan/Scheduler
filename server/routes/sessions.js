@@ -85,9 +85,11 @@ function hasOverlap(date, time, duration, excludeId = null) {
  *   client_id  {integer}  — Filter to a specific client by ID.
  *   client     {string}   — Filter to a specific client by name
  *                           (ignored if client_id is also provided).
+ *   from       {string}   — Return sessions on or after this date (YYYY-MM-DD).
+ *   to         {string}   — Return sessions on or before this date (YYYY-MM-DD).
  *
  * Example request:
- *   GET /api/sessions?month=2025-03
+ *   GET /api/sessions?client_id=1&from=2025-01-01&to=2025-03-31
  *
  * Example response (200):
  *   [
@@ -100,7 +102,7 @@ function hasOverlap(date, time, duration, excludeId = null) {
 router.get('/', (req, res) => {
   autoCompleteSessions();
 
-  const { month, year, client, client_id } = req.query;
+  const { month, year, client, client_id, from, to } = req.query;
   let sql = `
     SELECT s.id, s.client_id, c.name, s.date, s.time, s.duration, s.rate, s.status, s.location
     FROM sessions s
@@ -124,6 +126,14 @@ router.get('/', (req, res) => {
   } else if (client) {
     sql += ' AND c.name = ?';
     params.push(client);
+  }
+  if (from) {
+    sql += ' AND s.date >= ?';
+    params.push(from);
+  }
+  if (to) {
+    sql += ' AND s.date <= ?';
+    params.push(to);
   }
 
   sql += ' ORDER BY s.date, s.time';

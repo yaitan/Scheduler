@@ -38,10 +38,10 @@
   font-size: 13px;
 }
 
-.payments-invoice-error {
+.invoice-session-count {
   font-size: 13px;
-  color: #e57373;
-  padding: 4px 0;
+  color: var(--text-primary);
+  margin: 2px 0 4px;
 }
 
 /* ── Floating action menu (client row click) ──────────────────────── */
