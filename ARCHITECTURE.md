@@ -115,13 +115,15 @@ CREATE TABLE IF NOT EXISTS clients (
   id           INTEGER PRIMARY KEY,
   name         TEXT NOT NULL UNIQUE,
   rate         REAL NOT NULL,
-  phone        TEXT,
-  parent_phone TEXT,
+  contact_info TEXT,
+  billing_name TEXT,
   location     TEXT NOT NULL DEFAULT ''
 );
 ```
 
 `id` is a synthetic integer primary key. `name` carries a `UNIQUE` constraint — at personal scale no two clients share a name. All cross-table foreign keys reference `clients.id`. See [Design Decisions](#5-key-design-decisions).
+
+`billing_name` overrides `name` on generated PDFs (invoices and receipts). `contact_info` is a free-text field (e.g. phone number) displayed below the client name on PDFs.
 
 All financial and session statistics (balance owed, total hours, revenue, upcoming sessions) are **derived at query time** — never stored in this table.
 
