@@ -78,13 +78,12 @@ Scheduler/
 └── server/                      # Express backend
     ├── package.json
     ├── index.js                 # App entry: init DB, mount routes, serve static build
-    ├── .env                     # APP_PASSWORD, JWT_SECRET, PORT, DB_PATH
+    ├── .env                     # APP_PASSWORD, JWT_SECRET, PORT, DB_PATH, BUSINESS_NAME, BUSINESS_NUMBER, BUSINESS_EMAIL, BUSINESS_PHONE, BUSINESS_TAX_RATE, BUSINESS_WITHHOLDING_TAX
     │
     ├── middleware/
     │   └── requireAuth.js       # JWT verification applied to all /api/* except /api/auth
     │
-    ├── config/
-    │   └── business.json        # Business details (name, number, tax rate) used by pdf.js — gitignored
+    ├── config/                  # (directory kept for local overrides; business.json removed)
     │
     ├── fonts/
     │   ├── Rubik-Regular.ttf    # Embedded in PDF invoices; covers Hebrew, Latin, ₪

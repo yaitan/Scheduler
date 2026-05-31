@@ -3,7 +3,9 @@
  *
  * Routes for generating PDF documents.
  * Uses pdfkit to build and stream PDFs directly to the HTTP response.
- * Business info is sourced from config/business.json.
+ * Business info is read from environment variables (see server/.env / Railway vars):
+ *   BUSINESS_NAME, BUSINESS_NUMBER, BUSINESS_EMAIL, BUSINESS_PHONE,
+ *   BUSINESS_TAX_RATE, BUSINESS_WITHHOLDING_TAX
  *
  * Fonts: Rubik (Regular + Bold) embedded from server/fonts/.
  * Rubik covers Hebrew, Latin, and the ₪ glyph (U+20AA), making it suitable
@@ -39,7 +41,15 @@ const path        = require('path');
 const { Router }  = require('express');
 const PDFDocument = require('pdfkit');
 const { db, autoCompleteSessions } = require('../db/database');
-const business = require('../config/business.json');
+
+const business = {
+  nameHe:          process.env.BUSINESS_NAME             || '',
+  businessNumber:  process.env.BUSINESS_NUMBER           || '',
+  email:           process.env.BUSINESS_EMAIL            || '',
+  phone:           process.env.BUSINESS_PHONE            || '',
+  tax:             parseFloat(process.env.BUSINESS_TAX_RATE         || '0'),
+  withholding_tax: parseFloat(process.env.BUSINESS_WITHHOLDING_TAX  || '0'),
+};
 
 const FONT_REGULAR = path.join(__dirname, '../fonts/Rubik-Regular.ttf');
 const FONT_BOLD    = path.join(__dirname, '../fonts/Rubik-Bold.ttf');
