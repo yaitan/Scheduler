@@ -59,11 +59,15 @@ function hasOverlap(date, time, duration, excludeId = null) {
   const newStart = timeToMinutes(time);
   const newEnd   = newStart + duration;
 
-  const existing = db.prepare(`
-    SELECT time, duration FROM sessions
-    WHERE date = ? AND status != 'Cancelled'
-      ${excludeId != null ? `AND id != ${excludeId}` : ''}
-  `).all(date);
+  const existing = excludeId != null
+    ? db.prepare(`
+        SELECT time, duration FROM sessions
+        WHERE date = ? AND status != 'Cancelled' AND id != ?
+      `).all(date, excludeId)
+    : db.prepare(`
+        SELECT time, duration FROM sessions
+        WHERE date = ? AND status != 'Cancelled'
+      `).all(date);
 
   return existing.some(s => {
     const start = timeToMinutes(s.time);

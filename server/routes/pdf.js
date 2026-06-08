@@ -199,6 +199,10 @@ function reverseWords(text) {
  *
  * Generates and streams a Hebrew RTL PDF invoice (חשבון עסקה) for all
  * Completed sessions of the given client within the specified date range.
+ * The client's global balance (all completed sessions minus all payments) is
+ * used to compute a credit against this invoice: if the client has paid ahead
+ * relative to their total owed, the invoice is reduced by that credit amount.
+ * Formula: credit = max(0, invoiceTotal − clientBalance); balanceDue = invoiceTotal − credit.
  *
  * Query params:
  *   client_id     {integer}  — Client's database ID. Required.
@@ -244,10 +248,32 @@ router.get('/invoice', (req, res) => {
   if (sessions.length === 0)
     return res.status(404).json({ error: 'No completed sessions found for this client in the given date range' });
 
-  const taxPercent = business.tax || 0;
-  const subtotal   = sessions.reduce((sum, s) => sum + (s.duration * s.rate / 60), 0);
-  const taxAmount  = subtotal * taxPercent / 100;
-  const total      = subtotal + taxAmount;
+  // All completed sessions ever for this client → client's gross total (all time)
+  const allSessionRow = db.prepare(`
+    SELECT COALESCE(SUM(duration * rate / 60.0), 0) AS gross_total
+    FROM sessions WHERE client_id = ? AND status = 'Completed'
+  `).get(client_id);
+  const clientGrossTotal = allSessionRow.gross_total;
+
+  // All payments ever for this client
+  const paymentRow = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) AS total_paid
+    FROM payments WHERE client_id = ?
+  `).get(client_id);
+  const totalPaid = paymentRow.total_paid;
+
+  // clientBalance = what the client still owes across all time (same formula as owed panel)
+  const clientBalance = clientGrossTotal - totalPaid;
+
+  const taxPercent   = business.tax || 0;
+  const subtotal     = sessions.reduce((sum, s) => sum + (s.duration * s.rate / 60), 0);
+  const taxAmount    = subtotal * taxPercent / 100;
+  const invoiceTotal = subtotal + taxAmount;
+
+  // credit = how much the client has paid ahead relative to this invoice.
+  // Clamped to [0, invoiceTotal]: never negative, never exceeds the invoice amount.
+  const credit     = Math.max(0, Math.min(invoiceTotal, invoiceTotal - clientBalance));
+  const balanceDue = invoiceTotal - credit;
   const today      = new Date().toISOString().slice(0, 10);
   const clientName = billing_name || client.billing_name || client.name;
   const invoice_number = `3${String(sessions[0].id).padStart(4, '0')}-${sessions.length}`;
@@ -350,14 +376,21 @@ router.get('/invoice', (req, res) => {
   // מע"מ
   doc.text(`מע"מ`, TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
   doc.text(formatNIS(taxAmount),      TOT_AMT_X,   y, { width: TOT_AMT_W,   align: 'right' });
-  y += 16;
+  y += 20;
 
-  // סה"כ לתשלום — highlighted
+  // תשלומים שהתקבלו — only shown when the client has paid ahead enough to reduce this invoice
+  if (credit > 0) {
+    doc.text(reverseWords('יתרת זכות'), TOT_LABEL_X, y, { width: TOT_LABEL_W, align: 'right' });
+    doc.text(`-${formatNIS(credit)}`, TOT_AMT_X, y, { width: TOT_AMT_W, align: 'right' });
+    y += 20;
+  }
+
+  // סה"כ לתשלום — highlighted; reflects true balance due after credit
   const totRowW = TOT_LABEL_X + TOT_LABEL_W - LEFT+15;
   doc.rect(LEFT, y, totRowW, 26).fill('#ebebeb');
   doc.fontSize(11).font('Rubik-Bold').fillColor('#000000')
     .text(reverseWords('סה"כ לתשלום'), TOT_LABEL_X, y + 7, { width: TOT_LABEL_W, align: 'right' });
-  doc.text(formatNIS(total), TOT_AMT_X, y + 7, { width: TOT_AMT_W, align: 'right' });
+  doc.text(formatNIS(balanceDue), TOT_AMT_X, y + 7, { width: TOT_AMT_W, align: 'right' });
 
   doc.end();
 });

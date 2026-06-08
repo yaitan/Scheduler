@@ -102,7 +102,15 @@ function SessionModal({ session, initialDate, initialTime, onClose, onSaved, onD
   useEffect(() => {
     apiFetch('/api/clients')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setClients(data); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setClients(
+            data
+              .filter(c => !c.name.startsWith('['))
+              .sort((a, b) => a.name.localeCompare(b.name))
+          );
+        }
+      })
       .catch(() => {});
   }, []);
 

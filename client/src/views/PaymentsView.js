@@ -8,8 +8,8 @@
  *      opens PaymentModal pre-filled with the client and their outstanding balance.
  *      PaymentModal exposes a left-aligned "Create Invoice" button that closes it
  *      and opens PdfModal in invoice mode with the same client pre-selected.
- *   2. Recent payments table — all payments from two months ago through today,
- *      sorted by the server. Clicking a row opens PaymentModal in edit mode.
+ *   2. All payments table — every recorded payment, sorted by the server most-recent
+ *      first. Clicking a row opens PaymentModal in edit mode.
  *      Edit mode exposes a "Create Receipt" button that opens PdfModal in receipt
  *      mode pre-filled with the payment date.
  *
@@ -20,7 +20,7 @@
  * API routes used:
  *   GET  /api/payments/owed              — Clients with a positive balance owed,
  *                                          including the earliest unpaid session date.
- *   GET  /api/payments?from=YYYY-MM-DD   — Payments on or after the given date.
+ *   GET  /api/payments                    — All payments, no date filter.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +29,7 @@ import PdfModal from '../components/PdfModal';
 import '../styles/clients.css';
 import '../styles/payments.css';
 import { apiFetch } from '../utils/api';
-import { fmtDuration, formatDate, twoMonthsAgoStart } from '../utils/dateUtils';
+import { fmtDuration, formatDate } from '../utils/dateUtils';
 
 /**
  * PaymentsView
@@ -38,7 +38,7 @@ import { fmtDuration, formatDate, twoMonthsAgoStart } from '../utils/dateUtils';
  *   owed        {Array}       — Clients with outstanding balances, from GET /api/payments/owed.
  *                               Each entry has: client_id, name, balance_owed, minutes_owed,
  *                               earliest_unpaid { date }.
- *   payments    {Array}       — Recent payment records from GET /api/payments?from=...,
+ *   payments    {Array}       — All payment records from GET /api/payments,
  *                               each with: id, name, date, amount, method.
  *   loading     {boolean}     — True while the initial parallel fetch is in-flight.
  *   refreshKey  {number}      — Incrementing counter that triggers a re-fetch when changed.
@@ -69,10 +69,9 @@ function PaymentsView() {
    */
   useEffect(() => {
     setLoading(true);
-    const from = twoMonthsAgoStart();
     Promise.all([
       apiFetch('/api/payments/owed').then(r => r.json()).catch(() => []),
-      apiFetch(`/api/payments?from=${from}`).then(r => r.json()).catch(() => []),
+      apiFetch('/api/payments').then(r => r.json()).catch(() => []),
     ]).then(([owedData, paymentsData]) => {
       setOwed(Array.isArray(owedData) ? owedData : []);
       setPayments(Array.isArray(paymentsData) ? paymentsData : []);
@@ -134,10 +133,10 @@ function PaymentsView() {
 
       <div className="payments-divider" />
 
-      {/* ── Recent payments section ──────────────────────────────────────── */}
+      {/* ── All payments section ─────────────────────────────────────────── */}
       <h2 className="payments-section-title">Payments</h2>
       {payments.length === 0 ? (
-        <div className="clients-empty">No payments in the last 2 months.</div>
+        <div className="clients-empty">No payments recorded.</div>
       ) : (
         <div className="clients-table-wrap">
           <table className="clients-table">

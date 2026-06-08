@@ -261,8 +261,8 @@ All routes except `POST /api/auth/verify` and `GET /api/health` require a valid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all sessions of a client within a date range. Query params: `client_id`, `from`, `to`, optional `billing_name`. Invoice number format: `3XXXX-N`. Business details from `server/config/business.json` (gitignored). |
-| `GET` | `/api/pdf/receipt` | Generates and streams a Hebrew RTL receipt PDF (קבלה) for all payments of a client within a date range. Query params: `client_id`, `from`, `to`, optional `billing_name`. Receipt number format: `8XXXX-N`. Includes payment method (translated via `METHOD_LABELS`), details, date, amount, and a withholding-tax totals block. |
+| `GET` | `/api/pdf/invoice` | Generates and streams a Hebrew RTL invoice PDF (חשבון עסקה) for all sessions of a client within a date range. Computes a credit line by comparing the invoice total against the client's global balance (all-time completed sessions minus all-time payments); if the client has paid ahead, the credit is deducted and the final "סה"כ לתשלום" reflects what is actually still owed. Query params: `client_id`, `from`, `to`, optional `billing_name`. Invoice number format: `3XXXX-N`. Business details from env vars (`BUSINESS_NAME`, `BUSINESS_NUMBER`, etc.). |
+| `GET` | `/api/pdf/receipt` | Generates and streams a Hebrew RTL receipt PDF (קבלה) for all payments of a client within a date range. Query params: `client_id`, `from`, `to`, optional `billing_name`. Receipt number format: `8XXXX-N`. Includes payment method (translated via `METHOD_LABELS`), details, date, amount, and a withholding-tax totals block. Business details from env vars. |
 
 ### Static / SPA fallback
 

@@ -95,7 +95,15 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
   useEffect(() => {
     apiFetch('/api/clients')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setClients(data); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setClients(
+            data
+              .filter(c => !c.name.startsWith('['))
+              .sort((a, b) => a.name.localeCompare(b.name))
+          );
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -313,7 +321,7 @@ function PaymentModal({ payment, initialClientId, initialAmount, onClose, onSave
                     onCreateReceipt({ clientId: clientId ? parseInt(clientId) : null, date: toDateStr(date) });
                   }}
                 >
-                  Create Receipt
+                  Receipt
                 </button>
               )}
             </div>

@@ -90,7 +90,11 @@ function PdfModal({ mode, initialClientId, initialFrom, initialTo, onClose }) {
       .then(r => r.json())
       .then(data => {
         if (!Array.isArray(data)) return;
-        setClients(data);
+        setClients(
+          data
+            .filter(c => !c.name.startsWith('['))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
         if (initialClientId != null) {
           const c = data.find(c => c.id === initialClientId);
           if (c) setBillingName(c.billing_name || c.name || '');
